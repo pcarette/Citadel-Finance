@@ -8,7 +8,7 @@ import {ISynthereumDeployment} from '../../interfaces/IDeployment.sol';
 import {IPoolVault} from '../common/interfaces/IPoolVault.sol';
 import {ISynthereumFinder} from '../../interfaces/IFinder.sol';
 import {EnumerableSet} from '@openzeppelin/contracts/utils/structs/EnumerableSet.sol';
-import {FixedPoint} from '@uma/core/contracts/common/implementation/FixedPoint.sol';
+// import {FixedPoint} from '@uma/core/contracts/common/implementation/FixedPoint.sol';
 
 /**
  * @title Multi LP pool interface
