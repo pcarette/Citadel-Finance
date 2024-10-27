@@ -168,12 +168,14 @@ contract SynthereumDeployer is
     removeSyntheticTokenRoles(oldPool);
     setSyntheticTokenRoles(pool);
     ISynthereumRegistry poolRegistry = getPoolRegistry();
+    // wake-disable-next-line reentrancy (false positive, entrypoint is nonReentrant)
     poolRegistry.register(
       pool.syntheticTokenSymbol(),
       pool.collateralToken(),
       _poolVersion,
       address(pool)
     );
+    // wake-disable-next-line reentrancy (false positive, entrypoint is nonReentrant)
     poolRegistry.unregister(
       oldPool.syntheticTokenSymbol(),
       oldPool.collateralToken(),
@@ -344,7 +346,7 @@ contract SynthereumDeployer is
         SynthereumInterfaces.VaultFactory
       )
     );
-
+    // wake-disable-next-line reentrancy (false positive, entrypoint is nonReentrant)
     vault = vaultFactory.createVault(
       _lpTokenName,
       _lpTokenSymbol,
@@ -544,7 +546,9 @@ contract SynthereumDeployer is
     accounts[0] = _contractAddr;
     accounts[1] = _contractAddr;
     _isAdd
+    // wake-disable-next-line reentrancy (false positive, entrypoint is nonReentrant)
       ? manager.grantSynthereumRole(contracts, roles, accounts)
+    // wake-disable-next-line reentrancy (false positive, entrypoint is nonReentrant)
       : manager.revokeSynthereumRole(contracts, roles, accounts);
   }
 

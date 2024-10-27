@@ -45,7 +45,7 @@ contract FinderTest is Test {
     }
 
     function testCannotChangeImplementationAsNonMaintainer() public {
-        vm.prank(sender); // Impersonate the sender address
+        vm.prank(sender); // Impersonate the sender address for the next operation
         vm.expectRevert(); // Expect revert since sender is not maintainer
         finder.changeImplementationAddress(
             interfaceName1,
@@ -59,7 +59,7 @@ contract FinderTest is Test {
     }
 
     function testSetAndFindInterface() public {
-        vm.prank(maintainer); // Impersonate maintainer
+        vm.prank(maintainer); // Impersonate maintainer for the next operation
         finder.changeImplementationAddress(
             interfaceName1,
             implementationAddress1
@@ -106,12 +106,12 @@ contract FinderTest is Test {
             interfaceName2,
             implementationAddress2
         );
-        // Reset interface1 with new address
-        // vm.expectEmit(true, true, true, true);
-        // emit InterfaceImplementationChanged(
-        //     interfaceName1,
-        //     implementationAddress3
-        // );
+        //Reset interface1 with new address
+        vm.expectEmit(true, true, true, true);
+        emit InterfaceImplementationChanged(
+            interfaceName1,
+            implementationAddress3
+        );
 
         finder.changeImplementationAddress(
             interfaceName1,

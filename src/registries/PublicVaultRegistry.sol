@@ -70,6 +70,7 @@ contract SynthereumPublicVaultRegistry is
     for (uint256 j = 0; j < poolVaults.length; j++) {
       vaultSet.remove(poolVaults[j]);
       require(newVaultSet.add(poolVaults[j]), 'Vault already registered');
+      // wake-disable-next-line reentrancy (false positive, entrypoint is nonReentrant)
       IVaultMigration(poolVaults[j]).setReferencePool(newPool);
     }
   }
