@@ -13,3 +13,6 @@
 [submodule "lib/protocol"]
 	path = lib/protocol
 	url = https://github.com/UMAprotocol/protocol
+[submodule "lib/chainlink"]
+	path = lib/chainlink
+	url = https://github.com/smartcontractkit/chainlink
