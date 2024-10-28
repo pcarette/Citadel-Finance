@@ -2,7 +2,7 @@
 pragma solidity 0.8.9;
 
 import {ISynthereumFinder} from '../../interfaces/IFinder.sol';
-import {AggregatorV3Interface} from '@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol';
+import {AggregatorV3Interface} from '@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol';
 import {SynthereumPriceFeedImplementation} from './PriceFeedImplementation.sol';
 
 /**

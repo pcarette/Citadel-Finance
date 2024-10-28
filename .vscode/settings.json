@@ -2,6 +2,7 @@
     "wake.compiler.solc.remappings": [
         "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
         "@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/",
-        "@uma/core/=lib/protocol/packages/core/"
+        "@uma/core/=lib/protocol/packages/core/",
+        "@chainlink/contracts/=lib/chainlink-brownie-contracts/contracts/"
     ]
 }
