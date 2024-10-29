@@ -67,6 +67,7 @@ abstract contract SynthereumBaseVaultStorage is
     return ERC2771Context._msgData();
   }
 
+// ! Function added to avoid compilation errors : test wisely behaviour
   function _contextSuffixLength()
     internal
     view
