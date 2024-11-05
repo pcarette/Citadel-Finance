@@ -1,6 +1,4 @@
-Here’s an updated README with those details:
 
----
 
 # Citadel Finance
 
