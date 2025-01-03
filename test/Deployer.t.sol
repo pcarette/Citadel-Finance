@@ -15,7 +15,8 @@ import {SynthereumTrustedForwarder} from "../src/TrustedForwarder.sol";
 import {SynthereumChainlinkPriceFeed} from "../src/oracle/implementations/ChainlinkPriceFeed.sol";
 import {SynthereumPriceFeedImplementation} from "../src/oracle/implementations/PriceFeedImplementation.sol";
 import {SynthereumSyntheticTokenPermitFactory} from "../src/tokens/factories/SyntheticTokenPermitFactory.sol";
-
+import {SynthereumMultiLpLiquidityPoolFactory} from "../src/pool/MultiLpLiquidityPoolFactory.sol";
+import {SynthereumMultiLpLiquidityPool} from "../src/pool/MultiLpLiquidityPool.sol";
 
 contract DeployerTest is Test {
     struct Roles {
@@ -87,10 +88,12 @@ contract DeployerTest is Test {
 
     SynthereumDeployer deployer;
 
+    SynthereumSyntheticTokenPermitFactory tokenFactory;
+
     MockAggregator mockAggregator; 
     SynthereumPriceFeed priceFeed;
     SynthereumChainlinkPriceFeed synthereumChainlinkPriceFeed;
-    SynthereumSyntheticTokenPermitFactory tokenFactory;
+    SynthereumMultiLpLiquidityPoolFactory poolFactory;
     SynthereumTrustedForwarder forwarderInstance;
     SynthereumCollateralWhitelist collateralWhitelist;
     SynthereumIdentifierWhitelist identifierWhitelist;
@@ -124,8 +127,22 @@ contract DeployerTest is Test {
         priceFeed.setPair(priceIdentifier, SynthereumPriceFeed.Type(1), "chainlink", emptyArray);
         collateralWhitelist = new SynthereumCollateralWhitelist(SynthereumCollateralWhitelist.Roles(roles.admin, roles.maintainer));
         collateralWhitelist.addToWhitelist(collateralAddress);
+        finder.changeImplementationAddress(
+            bytes32(bytes("CollateralWhitelist")),
+            address(collateralWhitelist)
+        );
         identifierWhitelist = new SynthereumIdentifierWhitelist(SynthereumIdentifierWhitelist.Roles(roles.admin, roles.maintainer));
         identifierWhitelist.addToWhitelist(bytes32(bytes(priceIdentifier)));
+        finder.changeImplementationAddress(
+            bytes32(bytes("IdentifierWhitelist")),
+            address(identifierWhitelist)
+        );
+        tokenFactory = new SynthereumSyntheticTokenPermitFactory(address(finder));
+        finder.changeImplementationAddress(
+            bytes32(bytes("TokenFactory")),
+            address(tokenFactory)
+        );
+
         vm.stopPrank();
     }
 
@@ -133,8 +150,35 @@ contract DeployerTest is Test {
         poolVersion = 6;
         lendingManagerParams = LendingManagerParams(lendingId, debtTokenAddress, daoInterestShare, jrtBuybackShare);
         poolParams = PoolParams(poolVersion, collateralAddress, syntheticName, syntheticSymbol, address(0), StandardAccessControlEnumerable.Roles(roles.admin, roles.maintainer), feePercentage, bytes32(bytes(priceIdentifier)), overCollateralRequirement, liquidationReward, lendingManagerParams);
+        vm.startPrank(roles.maintainer);
         deployer = new SynthereumDeployer(finder, SynthereumDeployer.Roles(roles.admin, roles.maintainer));
         manager = new SynthereumManager(finder, SynthereumManager.Roles(roles.admin, roles.maintainer));
+        finder.changeImplementationAddress(
+            bytes32(bytes("Manager")),
+            address(manager)
+        );
+        // Add FactoryVersioning implementation to SynthereumFinder
+        SynthereumFactoryVersioning factoryVersioning = new SynthereumFactoryVersioning(
+            SynthereumFactoryVersioning.Roles(roles.admin, roles.maintainer)
+        );
+        SynthereumMultiLpLiquidityPool poolImplementation = new SynthereumMultiLpLiquidityPool();
+        poolFactory = new SynthereumMultiLpLiquidityPoolFactory(address(finder), address(poolImplementation));
+        factoryVersioning.setFactory(bytes32(bytes("PoolFactory")), poolVersion, address(poolFactory));
+        finder.changeImplementationAddress(
+            bytes32(bytes("Deployer")),
+            address(deployer)
+        );
+        finder.changeImplementationAddress(
+            bytes32(bytes("FactoryVersioning")),
+            address(factoryVersioning)
+        );
+        vm.stopPrank();
     }
     
+    function testShouldDeployPool() public {
+        vm.startPrank(roles.maintainer);
+        vm.expectEmit(true, true, true, true);
+        deployer.deployPool(poolVersion, abi.encode(poolParams));
+        vm.stopPrank();
+    }
 }
