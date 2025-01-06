@@ -17,6 +17,11 @@ import {SynthereumPriceFeedImplementation} from "../src/oracle/implementations/P
 import {SynthereumSyntheticTokenPermitFactory} from "../src/tokens/factories/SyntheticTokenPermitFactory.sol";
 import {SynthereumMultiLpLiquidityPoolFactory} from "../src/pool/MultiLpLiquidityPoolFactory.sol";
 import {SynthereumMultiLpLiquidityPool} from "../src/pool/MultiLpLiquidityPool.sol";
+import {LendingStorageManager} from "../src/lending-module/LendingStorageManager.sol";
+import {LendingManager} from "../src/lending-module/LendingManager.sol";
+import {ILendingManager} from "../src/lending-module/interfaces/ILendingManager.sol";
+import {ILendingStorageManager} from "../src/lending-module/interfaces/ILendingStorageManager.sol";
+import {SynthereumPoolRegistry} from "../src/registries/PoolRegistry.sol";
 
 contract DeployerTest is Test {
     struct Roles {
@@ -51,9 +56,9 @@ contract DeployerTest is Test {
         LendingManagerParams lendingManagerParams;
     }
 
-
     // State variables to store the values
-    address public collateralAddress = 0xc5f0f7b66764F6ec8C8Dff7BA683102295E16409; // FDUSD
+    address public collateralAddress =
+        0xc5f0f7b66764F6ec8C8Dff7BA683102295E16409; // FDUSD
     string public priceIdentifier = "EURUSD";
     string public syntheticName = "Citadel Synthetic Euro";
     string public syntheticSymbol = "cEUR";
@@ -69,18 +74,16 @@ contract DeployerTest is Test {
     uint256 capMintAmount = 1_000_000 ether;
     uint64 maxSpread = 0.001 ether;
 
-    SynthereumFinder finder;
-    SynthereumManager manager;
 
     LendingManagerParams lendingManagerParams;
     PoolParams poolParams;
 
-    struct Fee {
-     uint64 feePercentage;
-     address[2] feeRecipients;
-     uint32[2] feeProportions;
-    }
 
+    struct Fee {
+        uint64 feePercentage;
+        address[2] feeRecipients;
+        uint32[2] feeProportions;
+    }
 
     Roles public roles;
     Fee public fee;
@@ -90,16 +93,23 @@ contract DeployerTest is Test {
 
     SynthereumSyntheticTokenPermitFactory tokenFactory;
 
-    MockAggregator mockAggregator; 
+    SynthereumFinder finder;
+    SynthereumManager manager;
+    LendingManager lendingManager;
+    LendingStorageManager lendingStorageManager;
+    MockAggregator mockAggregator;
     SynthereumPriceFeed priceFeed;
     SynthereumChainlinkPriceFeed synthereumChainlinkPriceFeed;
     SynthereumMultiLpLiquidityPoolFactory poolFactory;
     SynthereumTrustedForwarder forwarderInstance;
     SynthereumCollateralWhitelist collateralWhitelist;
     SynthereumIdentifierWhitelist identifierWhitelist;
+    SynthereumPoolRegistry poolRegistry;
+    
 
     address debtTokenAddress = 0x75bd1A659bdC62e4C313950d44A2416faB43E785; //aBnbFdusd debt token
-    //TODO: Finish this test with factory
+
+    //TODO: reorder all contracts declarations & deployments
 
     constructor() {
         roles = Roles({
@@ -113,68 +123,187 @@ contract DeployerTest is Test {
             burner: address(0x9)
         });
         mockAggregator = new MockAggregator(8, 120000000);
-        finder = new SynthereumFinder(SynthereumFinder.Roles(roles.admin, roles.maintainer));
-        priceFeed = new SynthereumPriceFeed(finder, StandardAccessControlEnumerable.Roles(roles.admin, roles.maintainer));
-        synthereumChainlinkPriceFeed = new SynthereumChainlinkPriceFeed(finder, StandardAccessControlEnumerable.Roles(roles.admin, roles.maintainer));
+        finder = new SynthereumFinder(
+            SynthereumFinder.Roles(roles.admin, roles.maintainer)
+        );
+        priceFeed = new SynthereumPriceFeed(
+            finder,
+            StandardAccessControlEnumerable.Roles(roles.admin, roles.maintainer)
+        );
+
+
+        synthereumChainlinkPriceFeed = new SynthereumChainlinkPriceFeed(
+            finder,
+            StandardAccessControlEnumerable.Roles(roles.admin, roles.maintainer)
+        );
         feeProportions = [50, 50];
-        fee = Fee(feePercentage, [roles.liquidityProvider, roles.dao], feeProportions);
+        fee = Fee(
+            feePercentage,
+            [roles.liquidityProvider, roles.dao],
+            feeProportions
+        );
         selfMintingFee = fee;
         vm.startPrank(roles.maintainer);
-        priceFeed.addOracle("chainlink",address(synthereumChainlinkPriceFeed));
+
+        finder.changeImplementationAddress(
+            bytes32(bytes("PriceFeed")),
+            address(priceFeed)
+        );
+        priceFeed.addOracle("chainlink", address(synthereumChainlinkPriceFeed));
         maxSpread = 0.001 ether;
-        synthereumChainlinkPriceFeed.setPair(priceIdentifier, SynthereumPriceFeedImplementation.Type(1), address(mockAggregator), 0, "", maxSpread);
+        synthereumChainlinkPriceFeed.setPair(
+            priceIdentifier,
+            SynthereumPriceFeedImplementation.Type(1),
+            address(mockAggregator),
+            0,
+            "",
+            maxSpread
+        );
         string[] memory emptyArray;
-        priceFeed.setPair(priceIdentifier, SynthereumPriceFeed.Type(1), "chainlink", emptyArray);
-        collateralWhitelist = new SynthereumCollateralWhitelist(SynthereumCollateralWhitelist.Roles(roles.admin, roles.maintainer));
+        priceFeed.setPair(
+            priceIdentifier,
+            SynthereumPriceFeed.Type(1),
+            "chainlink",
+            emptyArray
+        );
+        collateralWhitelist = new SynthereumCollateralWhitelist(
+            SynthereumCollateralWhitelist.Roles(roles.admin, roles.maintainer)
+        );
         collateralWhitelist.addToWhitelist(collateralAddress);
         finder.changeImplementationAddress(
             bytes32(bytes("CollateralWhitelist")),
             address(collateralWhitelist)
         );
-        identifierWhitelist = new SynthereumIdentifierWhitelist(SynthereumIdentifierWhitelist.Roles(roles.admin, roles.maintainer));
+        identifierWhitelist = new SynthereumIdentifierWhitelist(
+            SynthereumIdentifierWhitelist.Roles(roles.admin, roles.maintainer)
+        );
         identifierWhitelist.addToWhitelist(bytes32(bytes(priceIdentifier)));
         finder.changeImplementationAddress(
             bytes32(bytes("IdentifierWhitelist")),
             address(identifierWhitelist)
         );
-        tokenFactory = new SynthereumSyntheticTokenPermitFactory(address(finder));
+        tokenFactory = new SynthereumSyntheticTokenPermitFactory(
+            address(finder)
+        );
         finder.changeImplementationAddress(
             bytes32(bytes("TokenFactory")),
             address(tokenFactory)
         );
 
+        lendingStorageManager = new LendingStorageManager(finder);
+        finder.changeImplementationAddress(
+            bytes32(bytes("LendingStorageManager")),
+            address(lendingStorageManager)
+        );
+
+        lendingManager = new LendingManager(finder, ILendingManager.Roles(roles.admin, roles.maintainer));
+        finder.changeImplementationAddress(
+            bytes32(bytes("LendingManager")),
+            address(lendingManager)
+        );
+        ILendingStorageManager.LendingInfo memory lendingInfo = ILendingStorageManager.LendingInfo(0xe6905378F7F595704368f2295938cb844a5b7eED, ""); // address of Aavev3 pool on bsc
+        lendingManager.setLendingModule("AaveV3", lendingInfo);
+
+        poolRegistry = new SynthereumPoolRegistry(finder); 
+        finder.changeImplementationAddress(
+            bytes32(bytes("PoolRegistry")),
+            address(poolRegistry)
+        );
+
+
         vm.stopPrank();
     }
 
     function setUp() public {
+        // Define pool version and lending manager parameters
         poolVersion = 6;
-        lendingManagerParams = LendingManagerParams(lendingId, debtTokenAddress, daoInterestShare, jrtBuybackShare);
-        poolParams = PoolParams(poolVersion, collateralAddress, syntheticName, syntheticSymbol, address(0), StandardAccessControlEnumerable.Roles(roles.admin, roles.maintainer), feePercentage, bytes32(bytes(priceIdentifier)), overCollateralRequirement, liquidationReward, lendingManagerParams);
+        lendingManagerParams = LendingManagerParams(
+            lendingId,
+            debtTokenAddress,
+            daoInterestShare,
+            jrtBuybackShare
+        );
+
+        // Define pool parameters, setting `liquidityProvider` to `address(0)`
+        poolParams = PoolParams(
+            poolVersion,
+            collateralAddress,
+            syntheticName,
+            syntheticSymbol,
+            address(0), // Placeholder for liquidity provider address
+            StandardAccessControlEnumerable.Roles(
+                roles.admin,
+                roles.maintainer
+            ),
+            feePercentage,
+            bytes32(bytes(priceIdentifier)),
+            overCollateralRequirement,
+            liquidationReward,
+            lendingManagerParams
+        );
+
+        // Start simulating the maintainer role
         vm.startPrank(roles.maintainer);
-        deployer = new SynthereumDeployer(finder, SynthereumDeployer.Roles(roles.admin, roles.maintainer));
-        manager = new SynthereumManager(finder, SynthereumManager.Roles(roles.admin, roles.maintainer));
+
+        // Deploy SynthereumDeployer contract with admin and maintainer roles
+        deployer = new SynthereumDeployer(
+            finder,
+            SynthereumDeployer.Roles(roles.admin, roles.maintainer)
+        );
+
+        // Deploy SynthereumManager contract with admin and maintainer roles
+        manager = new SynthereumManager(
+            finder,
+            SynthereumManager.Roles(roles.admin, roles.maintainer)
+        );
+
+        // Update the Manager implementation address in the SynthereumFinder
         finder.changeImplementationAddress(
             bytes32(bytes("Manager")),
             address(manager)
         );
-        // Add FactoryVersioning implementation to SynthereumFinder
-        SynthereumFactoryVersioning factoryVersioning = new SynthereumFactoryVersioning(
-            SynthereumFactoryVersioning.Roles(roles.admin, roles.maintainer)
+        forwarderInstance = new SynthereumTrustedForwarder();
+        finder.changeImplementationAddress(
+            bytes32(bytes("TrustedForwarder")),
+            address(forwarderInstance)
         );
+
+        // Deploy FactoryVersioning and set roles
+        SynthereumFactoryVersioning factoryVersioning = new SynthereumFactoryVersioning(
+                SynthereumFactoryVersioning.Roles(roles.admin, roles.maintainer)
+            );
+
         SynthereumMultiLpLiquidityPool poolImplementation = new SynthereumMultiLpLiquidityPool();
-        poolFactory = new SynthereumMultiLpLiquidityPoolFactory(address(finder), address(poolImplementation));
-        factoryVersioning.setFactory(bytes32(bytes("PoolFactory")), poolVersion, address(poolFactory));
+
+
+        // Deploy the pool factory with the pool implementation address
+        poolFactory = new SynthereumMultiLpLiquidityPoolFactory(
+            address(finder),
+            address(poolImplementation) // Ensure this implementation exists
+        );
+
+        // Register the pool factory in FactoryVersioning for the correct version
+        factoryVersioning.setFactory(
+            bytes32(bytes("PoolFactory")),
+            poolVersion,
+            address(poolFactory)
+        );
+
+        // Update Deployer and FactoryVersioning implementations in SynthereumFinder
         finder.changeImplementationAddress(
             bytes32(bytes("Deployer")),
             address(deployer)
         );
+
         finder.changeImplementationAddress(
             bytes32(bytes("FactoryVersioning")),
             address(factoryVersioning)
         );
+
+        // Stop simulating the maintainer role
         vm.stopPrank();
     }
-    
+
     function testShouldDeployPool() public {
         vm.startPrank(roles.maintainer);
         vm.expectEmit(true, true, true, true);
