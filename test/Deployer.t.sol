@@ -143,6 +143,8 @@ contract DeployerTest is Test {
             feeProportions
         );
         selfMintingFee = fee;
+        poolVersion = 6;
+
         vm.startPrank(roles.maintainer);
 
         finder.changeImplementationAddress(
@@ -210,48 +212,6 @@ contract DeployerTest is Test {
             address(poolRegistry)
         );
 
-
-        vm.stopPrank();
-    }
-
-    function setUp() public {
-        // Define pool version and lending manager parameters
-        poolVersion = 6;
-        lendingManagerParams = LendingManagerParams(
-            lendingId,
-            debtTokenAddress,
-            daoInterestShare,
-            jrtBuybackShare
-        );
-
-        // Define pool parameters, setting `liquidityProvider` to `address(0)`
-        poolParams = PoolParams(
-            poolVersion,
-            collateralAddress,
-            syntheticName,
-            syntheticSymbol,
-            address(0), // Placeholder for liquidity provider address
-            StandardAccessControlEnumerable.Roles(
-                roles.admin,
-                roles.maintainer
-            ),
-            feePercentage,
-            bytes32(bytes(priceIdentifier)),
-            overCollateralRequirement,
-            liquidationReward,
-            lendingManagerParams
-        );
-
-        // Start simulating the maintainer role
-        vm.startPrank(roles.maintainer);
-
-        // Deploy SynthereumDeployer contract with admin and maintainer roles
-        deployer = new SynthereumDeployer(
-            finder,
-            SynthereumDeployer.Roles(roles.admin, roles.maintainer)
-        );
-
-        // Deploy SynthereumManager contract with admin and maintainer roles
         manager = new SynthereumManager(
             finder,
             SynthereumManager.Roles(roles.admin, roles.maintainer)
@@ -289,25 +249,71 @@ contract DeployerTest is Test {
             address(poolFactory)
         );
 
-        // Update Deployer and FactoryVersioning implementations in SynthereumFinder
-        finder.changeImplementationAddress(
-            bytes32(bytes("Deployer")),
-            address(deployer)
-        );
 
         finder.changeImplementationAddress(
             bytes32(bytes("FactoryVersioning")),
             address(factoryVersioning)
         );
 
-        // Stop simulating the maintainer role
+
         vm.stopPrank();
     }
 
+    function setUp() public {
+        // Define pool version and lending manager parameters
+        lendingManagerParams = LendingManagerParams(
+            lendingId,
+            debtTokenAddress,
+            daoInterestShare,
+            jrtBuybackShare
+        );
+
+        // Define pool parameters, setting `liquidityProvider` to `address(0)`
+        poolParams = PoolParams(
+            poolVersion,
+            collateralAddress,
+            syntheticName,
+            syntheticSymbol,
+            address(0), // Placeholder for liquidity provider address
+            StandardAccessControlEnumerable.Roles(
+                roles.admin,
+                roles.maintainer
+            ),
+            feePercentage,
+            bytes32(bytes(priceIdentifier)),
+            overCollateralRequirement,
+            liquidationReward,
+            lendingManagerParams
+        );
+
+        // Start simulating the maintainer role
+        vm.startPrank(roles.maintainer);
+
+        // Deploy SynthereumDeployer contract with admin and maintainer roles
+        deployer = new SynthereumDeployer(
+            finder,
+            SynthereumDeployer.Roles(roles.admin, roles.maintainer)
+        );
+        // Update Deployer and FactoryVersioning implementations in SynthereumFinder
+        finder.changeImplementationAddress(
+            bytes32(bytes("Deployer")),
+            address(deployer)
+        );
+
+        // Deploy SynthereumManager contract with admin and maintainer roles
+
+        // Stop simulating the maintainer role
+        vm.stopPrank();
+    }
+    event PoolDeployed(uint8 indexed poolVersion, address indexed newPool);
+
     function testShouldDeployPool() public {
         vm.startPrank(roles.maintainer);
-        vm.expectEmit(true, true, true, true);
+        vm.expectEmit(true, false, false, false);
+        emit PoolDeployed(6, address(0x000000000000));
         deployer.deployPool(poolVersion, abi.encode(poolParams));
         vm.stopPrank();
     }
+
+
 }
