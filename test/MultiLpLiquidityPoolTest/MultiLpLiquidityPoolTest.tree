@@ -1,0 +1,105 @@
+MultiLpLiquidityPool_Test
+└── when the protocol wants to create a pool
+   ├── when pool is initialized
+   │  ├── it should deploy
+   │  ├── it should revert if trying initialize implementation
+   │  ├── it should revert if trying to re-initialize pool
+   │  ├── it should revert if trying to re-initialize pool
+   │  └── it should revert
+   ├── when liquidity provider registration
+   │  ├── it should register new LP
+   │  ├── it should revert if sender is not maintainer
+   │  └── it should revert if trying to register already registered LP
+   ├── when liquidity provider activation
+   │  ├── it should activate registered LP without active LPs
+   │  ├── it should activate registered LP with active LPs
+   │  ├── it should revert if sender is not registered
+   │  ├── it should revert if collateral deposited is zero
+   │  ├── it should revert if LP overcollateralization is less than overcollateral requirement
+   │  ├── it should revert if already active LP try to activate
+   │  └── it should revert if get info of an inactive LP
+   ├── when user mint tokens
+   │  ├── it should mint
+   │  ├── it should revert if transaction is expired
+   │  ├── it should revert if collateral amount is zero
+   │  ├── it should revert if tokens received is less than minimum set
+   │  └── it should check all Lps are above the collateralization level after mint
+   ├── when user redeem tokens
+   │  ├── it should redeem
+   │  ├── it should redeem all synthetic tokens
+   │  ├── it should revert if transaction is expired
+   │  ├── it should revert if no tokens are sent
+   │  ├── it should revert if redeem more amount of synthetic token than one in the pool 
+   │  └── it should check all Lps are above the collateralization level after mint
+   ├── when LP adds liquidity
+   │  ├── it should add liquidity
+   │  ├── it should revert if LP is not active
+   │  └── it should revert if no collateral sent for adding
+   ├── when LP removes liquidity
+   │  ├── it should remove liquidity
+   │  ├── it should revert if LP is not active
+   │  ├── it should revert if no collateral to withdraw passed
+   │  ├── it should revert if trying to remove more than deposited
+   │  └── it should revert if trying to remove with final position below overcollateralization level
+   ├── when setting overcollateralization
+   │  ├── it should set overcollateralization
+   │  ├── it should revert if LP is not active
+   │  ├── it should revert if new overcollateralization below overcollateral requirement
+   │  ├── it should revert if new overcollateralization makes the position below its overcollateralization level 
+   │  ├── it should revert if trying to remove more than deposited
+   │  └── it should revert if trying to remove with final position below overcollateralization level
+   ├── when liquidation
+   │  ├── it should liquidate
+   │  ├── it should liquidate all the positions of a LP
+   │  ├── it should revert if trying to liquidate an inactive LP
+   │  └── it should revert if LP is not undercollateralized
+   ├── when LP profits or loss interests are split
+   │  ├── it should split interests correctly
+   │  ├── it should split profits between LPs
+   │  ├── it should split loss between LPs
+   │  └── it should revert if one or more LPs are undercapitalized 
+   ├── when transfer to lending manager
+   │  ├── it should transfer to lending manager
+   │  └── it should revert if the sender is not the lending manager
+   ├── when transfer pool params are set my maintainer
+   │  ├── it should set liquidation reward
+   │  ├── it should revert in setting liquidation reward if sender is not the maintainer
+   │  ├── it should revert if zero percent is set as reward
+   │  ├── it should revert if more than 100% is set as reward
+   │  ├── it should set fee
+   │  ├── it should revert in setting fee if sender is not the maintainer
+   │  └── it should revert if fee is equal or bigger than 100%
+   ├── when storage migration
+   │  ├── it should migrate storage
+   │  └── it should revert if migrate funds caller is not lending manager
+   ├── when getting trading info from minting
+   │  ├── it should get mint info
+   │  ├── it should revert if no collateral amount passed
+   │  └── it should revert if not enough liquidity available
+   ├── when getting trading info from redeeming
+   │  ├── it should get redeem info
+   │  ├── it should revert if no token passed
+   │  └── it should revert if more tokens than ones in position are passed 
+   ├── when switching to a new lending module protocol
+   │  ├── it should switch to a lending module with bonus on deposit
+   │  ├── it should switch to a lending module with fees on deposit
+   │  ├── it should revert if switch function is not called by the manager
+   │  └── it should revert if more tokens than ones in position are passed 
+   ├── when using lending module with deposit bonus
+   │  ├── it should mint
+   │  ├── it should redeem
+   │  ├── it should add liquidity
+   │  ├── it should remove liquidity
+   │  └── it should liquidate
+   ├── when using lending module with deposit fees
+   │  ├── it should mint
+   │  ├── it should redeem
+   │  ├── it should add liquidity
+   │  ├── it should remove liquidity
+   │  └── it should liquidate
+   ├── when claiming lending rewards
+   │  ├── it should claim rewards
+   │  ├── it should revert if the sender is not the maintainer
+   │  ├── it should revert if wrong collateral is passed
+   │  ├── it should revert if wrong bearing token is passed
+   │  └── it should revert if caller is not the lending manager
