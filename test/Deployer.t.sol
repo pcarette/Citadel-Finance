@@ -4,7 +4,6 @@ pragma solidity ^0.8.0;
 import "forge-std/Test.sol";
 import {SynthereumFinder} from "../src/Finder.sol"; // Assuming Finder.sol is in src directory
 import {SynthereumDeployer} from "../src/Deployer.sol";
-import {MockAggregator} from "../src/test/MockAggregator.sol";
 import {StandardAccessControlEnumerable} from "../src/roles/StandardAccessControlEnumerable.sol";
 import {SynthereumPriceFeed} from "../src/oracle/PriceFeed.sol";
 import {SynthereumManager} from "../src/Manager.sol";
@@ -60,7 +59,7 @@ contract DeployerTest is Test {
     address public collateralAddress =
         0xc5f0f7b66764F6ec8C8Dff7BA683102295E16409; // FDUSD
     string public priceIdentifier = "EURUSD";
-    string public syntheticName = "Citadel Synthetic Euro";
+    string public syntheticName = "Citadel Euro";
     string public syntheticSymbol = "cEUR";
     string public lendingId = "AaveV3";
     uint64 daoInterestShare = 0.1 ether;
@@ -97,7 +96,7 @@ contract DeployerTest is Test {
     SynthereumManager manager;
     LendingManager lendingManager;
     LendingStorageManager lendingStorageManager;
-    MockAggregator mockAggregator;
+    address aggregator = 0x0bf79F617988C472DcA68ff41eFe1338955b9A80;// Chainlink bsc data feed address;
     SynthereumPriceFeed priceFeed;
     SynthereumChainlinkPriceFeed synthereumChainlinkPriceFeed;
     SynthereumMultiLpLiquidityPoolFactory poolFactory;
@@ -107,7 +106,7 @@ contract DeployerTest is Test {
     SynthereumPoolRegistry poolRegistry;
     
 
-    address debtTokenAddress = 0x75bd1A659bdC62e4C313950d44A2416faB43E785; //aBnbFdusd debt token
+    address debtTokenAddress = 0x75bd1A659bdC62e4C313950d44A2416faB43E785; //aave aBnbFdusd debt token
 
     //TODO: reorder all contracts declarations & deployments
 
@@ -122,7 +121,6 @@ contract DeployerTest is Test {
             minter: address(0x8),
             burner: address(0x9)
         });
-        mockAggregator = new MockAggregator(8, 120000000);
         finder = new SynthereumFinder(
             SynthereumFinder.Roles(roles.admin, roles.maintainer)
         );
@@ -143,7 +141,7 @@ contract DeployerTest is Test {
             feeProportions
         );
         selfMintingFee = fee;
-        poolVersion = 6;
+        poolVersion = 1;
 
         vm.startPrank(roles.maintainer);
 
@@ -156,7 +154,7 @@ contract DeployerTest is Test {
         synthereumChainlinkPriceFeed.setPair(
             priceIdentifier,
             SynthereumPriceFeedImplementation.Type(1),
-            address(mockAggregator),
+            aggregator,
             0,
             "",
             maxSpread
@@ -310,7 +308,7 @@ contract DeployerTest is Test {
     function testShouldDeployPool() public {
         vm.startPrank(roles.maintainer);
         vm.expectEmit(true, false, false, false);
-        emit PoolDeployed(6, address(0x000000000000));
+        emit PoolDeployed(1, address(0x000000000000));
         deployer.deployPool(poolVersion, abi.encode(poolParams));
         vm.stopPrank();
     }
