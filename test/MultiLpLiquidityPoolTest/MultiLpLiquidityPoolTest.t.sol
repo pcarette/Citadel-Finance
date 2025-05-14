@@ -24,6 +24,9 @@ import {ILendingStorageManager} from "../../src/lending-module/interfaces/ILendi
 import {SynthereumPoolRegistry} from "../../src/registries/PoolRegistry.sol";
 
 import { IERC20 } from "lib/forge-std/src/interfaces/IERC20.sol";
+import {ISynthereumMultiLpLiquidityPool} from "../../src/pool/interfaces/IMultiLpLiquidityPool.sol";
+import {IStandardERC20} from "../../src/base/interfaces/IStandardERC20.sol";
+import {IMintableBurnableERC20} from "../../src/tokens/interfaces/IMintableBurnableERC20.sol";
 
 
 contract MultiLpLiquidityPool_Test is Test {
@@ -348,7 +351,7 @@ contract MultiLpLiquidityPool_Test is Test {
         whenTheProtocolWantsToCreateAPool
         whenPoolIsInitialized
     {
-        // it should revert with "initializer-disabled"
+      
     }
 
     function test_GivenRe_initializingAnAlreadyInitializedPool()
@@ -357,6 +360,26 @@ contract MultiLpLiquidityPool_Test is Test {
         whenPoolIsInitialized
     {
         // it should revert with "already-initialized"
+          ISynthereumMultiLpLiquidityPool.InitializationParams memory initialisationParams = ISynthereumMultiLpLiquidityPool.InitializationParams({
+            finder: finder,
+            version: poolVersion,
+            collateralToken: IStandardERC20(address(pool.collateralToken())),
+            syntheticToken: IMintableBurnableERC20(address(pool.syntheticToken())),
+            roles: ISynthereumMultiLpLiquidityPool.Roles({
+                admin: roles.admin,
+                maintainer: roles.maintainer
+            }),
+            fee: feePercentage,
+            priceIdentifier: bytes32(bytes(priceIdentifier)),
+            overCollateralRequirement: overCollateralRequirement,
+            liquidationReward: liquidationReward,
+            lendingModuleId: lendingId
+        });
+        
+        vm.expectRevert("Pool already initialized");
+        vm.prank(roles.maintainer);
+        pool.initialize(initialisationParams);
+        // it should revert with "initializer-disabled"
     }
 
     function test_GivenSecondAttemptToRe_initialize()
@@ -369,9 +392,22 @@ contract MultiLpLiquidityPool_Test is Test {
 
     function test_GivenAnUnexpectedFailure() external whenTheProtocolWantsToCreateAPool whenPoolIsInitialized {
         // it should revert with fallback error
+        // ? it should revert when collateral amount is zero during deployment
+        vm.startPrank(roles.maintainer);
+        PoolParams memory wrongPoolParams = poolParams;
+        wrongPoolParams.overCollateralRequirement = 0;
+        vm.expectRevert("Overcollateral requirement must be bigger than 0%");
+        deployer.deployPool(poolVersion, abi.encode(wrongPoolParams));
+        vm.stopPrank();
     }
 
     modifier whenLiquidityProviderRegistration() {
+        // it should deploy the pool implementation correctly
+        vm.startPrank(roles.maintainer);
+         vm.expectEmit(true, false, false, false);
+        emit PoolDeployed(1, address(0x000000000000));
+        pool = SynthereumMultiLpLiquidityPool(address(deployer.deployPool(poolVersion, abi.encode(poolParams))));
+        vm.stopPrank();
         _;
     }
 
@@ -381,6 +417,8 @@ contract MultiLpLiquidityPool_Test is Test {
         whenLiquidityProviderRegistration
     {
         // it should allow maintainer to register new LP
+        vm.prank(roles.maintainer);
+        pool.registerLP(lps[0]);
     }
 
     function test_GivenSenderIsNotTheMaintainer()
