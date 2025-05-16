@@ -403,11 +403,10 @@ contract MultiLpLiquidityPool_Test is Test {
 
     modifier whenLiquidityProviderRegistration() {
         // it should deploy the pool implementation correctly
-        vm.startPrank(roles.maintainer);
+        vm.prank(roles.maintainer);
          vm.expectEmit(true, false, false, false);
         emit PoolDeployed(1, address(0x000000000000));
         pool = SynthereumMultiLpLiquidityPool(address(deployer.deployPool(poolVersion, abi.encode(poolParams))));
-        vm.stopPrank();
         _;
     }
 
@@ -427,6 +426,9 @@ contract MultiLpLiquidityPool_Test is Test {
         whenLiquidityProviderRegistration
     {
         // it should revert with "unauthorized"
+        vm.expectRevert("Sender must be the maintainer");
+        vm.prank(roles.firstWrongAddress);
+        pool.registerLP(lps[0]);
     }
 
     function test_GivenLPIsAlreadyRegistered()
@@ -434,7 +436,12 @@ contract MultiLpLiquidityPool_Test is Test {
         whenTheProtocolWantsToCreateAPool
         whenLiquidityProviderRegistration
     {
+        vm.startPrank(roles.maintainer);
+        pool.registerLP(lps[0]);
         // it should revert with "already-registered"
+        vm.expectRevert("LP already registered");
+        pool.registerLP(lps[0]);
+        vm.stopPrank();
     }
 
     modifier whenLiquidityProviderActivation() {
