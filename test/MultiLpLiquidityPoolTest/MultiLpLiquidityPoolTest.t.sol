@@ -27,6 +27,8 @@ import { IERC20 } from "lib/forge-std/src/interfaces/IERC20.sol";
 import {ISynthereumMultiLpLiquidityPool} from "../../src/pool/interfaces/IMultiLpLiquidityPool.sol";
 import {IStandardERC20} from "../../src/base/interfaces/IStandardERC20.sol";
 import {IMintableBurnableERC20} from "../../src/tokens/interfaces/IMintableBurnableERC20.sol";
+import {CompoundModule} from "../../src/lending-module/lending-modules/Compound.sol";
+
 
 
 contract MultiLpLiquidityPool_Test is Test {
@@ -68,7 +70,7 @@ contract MultiLpLiquidityPool_Test is Test {
     string public priceIdentifier = "EURUSD";
     string public syntheticName = "Citadel Euro";
     string public syntheticSymbol = "cEUR";
-    string public lendingId = "AaveV3";
+    string public lendingId = "Compound";
     uint64 daoInterestShare = 0.1 ether;
     uint64 jrtBuybackShare = 0.6 ether;
     uint8 poolVersion;
@@ -80,7 +82,7 @@ contract MultiLpLiquidityPool_Test is Test {
     uint256 capMintAmount = 1_000_000 ether;
     uint64 maxSpread = 0.001 ether;
 
-    address debtTokenAddress = 0x75bd1A659bdC62e4C313950d44A2416faB43E785; // aave aBnbFdusd debt token
+    address debtTokenAddress = 0xC4eF4229FEc74Ccfe17B2bdeF7715fAC740BA0ba; // aave aBnbFdusd debt token
 
 
 
@@ -89,6 +91,7 @@ contract MultiLpLiquidityPool_Test is Test {
 
     event PoolDeployed(uint8 indexed poolVersion, address indexed newPool);
 
+    CompoundModule venusModule;
 
 
     struct Fee {
@@ -128,6 +131,7 @@ contract MultiLpLiquidityPool_Test is Test {
 
     constructor () {
         lps.push(address(0x4));
+        lps.push(address(0x44));
         roles = Roles({
             admin: address(0x2),
             maintainer: address(0x3),
@@ -209,8 +213,12 @@ contract MultiLpLiquidityPool_Test is Test {
             bytes32(bytes("LendingManager")),
             address(lendingManager)
         );
-        ILendingStorageManager.LendingInfo memory lendingInfo = ILendingStorageManager.LendingInfo(0xe6905378F7F595704368f2295938cb844a5b7eED, ""); // address of Aavev3 pool on bsc
-        lendingManager.setLendingModule("AaveV3", lendingInfo);
+        
+        venusModule = new CompoundModule();
+
+        ILendingStorageManager.LendingInfo memory lendingInfo = ILendingStorageManager.LendingInfo(address(venusModule), ""); // address of venus pool on bsc
+
+        lendingManager.setLendingModule("Compound", lendingInfo);
 
         poolRegistry = new SynthereumPoolRegistry(finder); 
         finder.changeImplementationAddress(
@@ -310,16 +318,21 @@ contract MultiLpLiquidityPool_Test is Test {
     }
     
     modifier whenTheProtocolWantsToCreateAPool() {
+        // it should deploy the pool implementation correctly
+        vm.prank(roles.maintainer);
+         vm.expectEmit(true, false, false, false);
+        emit PoolDeployed(1, address(0x000000000000));
+        pool = SynthereumMultiLpLiquidityPool(address(deployer.deployPool(poolVersion, abi.encode(poolParams))));
         _; 
     }
 
     modifier whenPoolIsInitialized() {
         // it should deploy the pool implementation correctly
-        vm.startPrank(roles.maintainer);
-         vm.expectEmit(true, false, false, false);
-        emit PoolDeployed(1, address(0x000000000000));
-        pool = SynthereumMultiLpLiquidityPool(address(deployer.deployPool(poolVersion, abi.encode(poolParams))));
-        vm.stopPrank();
+        // vm.startPrank(roles.maintainer);
+        //  vm.expectEmit(true, false, false, false);
+        // emit PoolDeployed(1, address(0x000000000000));
+        // pool = SynthereumMultiLpLiquidityPool(address(deployer.deployPool(poolVersion, abi.encode(poolParams))));
+        // vm.stopPrank();
         _;
     }
 
@@ -445,6 +458,16 @@ contract MultiLpLiquidityPool_Test is Test {
     }
 
     modifier whenLiquidityProviderActivation() {
+        //Register first address before activation
+        // vm.prank(roles.maintainer);
+        // pool = SynthereumMultiLpLiquidityPool(address(deployer.deployPool(poolVersion, abi.encode(poolParams))));
+
+        vm.prank(roles.maintainer);
+        pool.registerLP(lps[0]);
+
+        for (uint8 i = 0; i < lps.length ; ++i) {
+            deal(collateralAddress, lps[i], 100 ether);
+        }
         _;
     }
 
@@ -453,8 +476,24 @@ contract MultiLpLiquidityPool_Test is Test {
         whenTheProtocolWantsToCreateAPool
         whenLiquidityProviderActivation
     {
+        IERC20 CollateralToken = IERC20(collateralAddress);
+        uint256 collateralAmount = 1 ether;
+        uint128 overCollateralization = 1 ether;
+
         // it should activate LP when no LPs are active
+        vm.startPrank(lps[0]);
+        CollateralToken.approve(address(pool), collateralAmount);
+        pool.activateLP(collateralAmount, overCollateralization);
+        vm.stopPrank();
         // it should activate LP when others are already active
+        vm.prank(roles.maintainer);
+        pool.registerLP(lps[1]);
+
+        vm.startPrank(lps[1]);
+        CollateralToken.approve(address(pool), collateralAmount);
+        pool.activateLP(collateralAmount, overCollateralization);
+        vm.stopPrank();
+
     }
 
     function test_GivenUnregisteredSender()

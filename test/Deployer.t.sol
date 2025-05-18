@@ -21,6 +21,7 @@ import {LendingManager} from "../src/lending-module/LendingManager.sol";
 import {ILendingManager} from "../src/lending-module/interfaces/ILendingManager.sol";
 import {ILendingStorageManager} from "../src/lending-module/interfaces/ILendingStorageManager.sol";
 import {SynthereumPoolRegistry} from "../src/registries/PoolRegistry.sol";
+import {CompoundModule} from "../src/lending-module/lending-modules/Compound.sol";
 
 contract DeployerTest is Test {
     struct Roles {
@@ -61,7 +62,7 @@ contract DeployerTest is Test {
     string public priceIdentifier = "EURUSD";
     string public syntheticName = "Citadel Euro";
     string public syntheticSymbol = "cEUR";
-    string public lendingId = "AaveV3";
+    string public lendingId = "Compound";
     uint64 daoInterestShare = 0.1 ether;
     uint64 jrtBuybackShare = 0.6 ether;
     uint8 poolVersion;
@@ -76,6 +77,8 @@ contract DeployerTest is Test {
 
     LendingManagerParams lendingManagerParams;
     PoolParams poolParams;
+
+    CompoundModule venusModule;
 
 
     struct Fee {
@@ -106,7 +109,7 @@ contract DeployerTest is Test {
     SynthereumPoolRegistry poolRegistry;
     
 
-    address debtTokenAddress = 0x75bd1A659bdC62e4C313950d44A2416faB43E785; //aave aBnbFdusd debt token
+    address debtTokenAddress = 0xC4eF4229FEc74Ccfe17B2bdeF7715fAC740BA0ba; //aave aBnbFdusd debt token
 
     //TODO: reorder all contracts declarations & deployments
 
@@ -201,8 +204,11 @@ contract DeployerTest is Test {
             bytes32(bytes("LendingManager")),
             address(lendingManager)
         );
-        ILendingStorageManager.LendingInfo memory lendingInfo = ILendingStorageManager.LendingInfo(0xe6905378F7F595704368f2295938cb844a5b7eED, ""); // address of Aavev3 pool on bsc
-        lendingManager.setLendingModule("AaveV3", lendingInfo);
+
+        venusModule = new CompoundModule();
+
+        ILendingStorageManager.LendingInfo memory lendingInfo = ILendingStorageManager.LendingInfo(address(venusModule), ""); // address of venus pool on bsc
+        lendingManager.setLendingModule("Compound", lendingInfo);
 
         poolRegistry = new SynthereumPoolRegistry(finder); 
         finder.changeImplementationAddress(
@@ -252,6 +258,7 @@ contract DeployerTest is Test {
             bytes32(bytes("FactoryVersioning")),
             address(factoryVersioning)
         );
+
 
 
         vm.stopPrank();
