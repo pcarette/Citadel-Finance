@@ -243,7 +243,7 @@ contract MultiLpLiquidityPool_Test is Test {
         );
 
         // Deploy FactoryVersioning and set roles
-        SynthereumFactoryVersioning factoryVersioning = new SynthereumFactoryVersioning(
+        factoryVersioning = new SynthereumFactoryVersioning(
                 SynthereumFactoryVersioning.Roles(roles.admin, roles.maintainer)
             );
 
@@ -471,14 +471,16 @@ contract MultiLpLiquidityPool_Test is Test {
         _;
     }
 
+    //We'll need thoses variables for the rest of the tests
+    IERC20 CollateralToken = IERC20(collateralAddress);
+    uint256 collateralAmount = 1 ether;
+    uint128 overCollateralization = 1 ether;
+
     function test_WhenLiquidityProviderActivation()
         external
         whenTheProtocolWantsToCreateAPool
         whenLiquidityProviderActivation
     {
-        IERC20 CollateralToken = IERC20(collateralAddress);
-        uint256 collateralAmount = 1 ether;
-        uint128 overCollateralization = 1 ether;
 
         // it should activate LP when no LPs are active
         vm.startPrank(lps[0]);
@@ -502,6 +504,12 @@ contract MultiLpLiquidityPool_Test is Test {
         whenLiquidityProviderActivation
     {
         // it should revert with "not-registered"
+        vm.startPrank(lps[1]);
+        CollateralToken.approve(address(pool), collateralAmount);
+
+        vm.expectRevert("Sender must be a registered LP");
+        pool.activateLP(collateralAmount, overCollateralization);
+        vm.stopPrank();
     }
 
     function test_GivenCollateralAmountIsZero()
@@ -510,6 +518,13 @@ contract MultiLpLiquidityPool_Test is Test {
         whenLiquidityProviderActivation
     {
         // it should revert with "zero-collateral"
+        vm.startPrank(lps[0]);
+        collateralAmount = 0;
+        CollateralToken.approve(address(pool), collateralAmount);
+
+        vm.expectRevert("No collateral deposited");
+        pool.activateLP(collateralAmount, overCollateralization);
+        vm.stopPrank();
     }
 
     function test_GivenUndercollateralizationAtActivation()
@@ -518,6 +533,13 @@ contract MultiLpLiquidityPool_Test is Test {
         whenLiquidityProviderActivation
     {
         // it should revert with "insufficient-collateral"
+        vm.startPrank(lps[0]);
+        overCollateralization = 0.045 ether;
+        CollateralToken.approve(address(pool), collateralAmount);
+
+        vm.expectRevert("Overcollateralization must be bigger than overcollateral requirement");
+        pool.activateLP(collateralAmount, overCollateralization);
+        vm.stopPrank();
     }
 
     function test_GivenLPAlreadyActiveTriesToActivateAgain()
@@ -526,6 +548,12 @@ contract MultiLpLiquidityPool_Test is Test {
         whenLiquidityProviderActivation
     {
         // it should revert with "already-active"
+        vm.startPrank(lps[0]);
+        CollateralToken.approve(address(pool), 2 * collateralAmount);
+        pool.activateLP(collateralAmount, overCollateralization);
+        vm.expectRevert("LP already active");
+        pool.activateLP(collateralAmount, overCollateralization);
+        vm.stopPrank();
     }
 
     function test_GivenQueryingInfoForInactiveLP()
@@ -534,6 +562,9 @@ contract MultiLpLiquidityPool_Test is Test {
         whenLiquidityProviderActivation
     {
         // it should revert with "inactive-lp"
+        vm.prank(roles.firstWrongAddress);
+        vm.expectRevert("LP not active");
+        pool.positionLPInfo(lps[0]);
     }
 
     modifier whenUserMintTokens() {
