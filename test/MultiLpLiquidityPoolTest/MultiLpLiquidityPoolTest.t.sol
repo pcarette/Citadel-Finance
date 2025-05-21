@@ -76,7 +76,7 @@ contract MultiLpLiquidityPool_Test is Test {
     uint8 poolVersion;
     uint128 overCollateralRequirement = 0.05 ether;
     uint64 liquidationReward = 0.5 ether;
-    uint64 feePercentage = 0.02 ether; // 2% fee
+    uint64 feePercentage = 0.002 ether; // 0.2% fee
     uint32[2] feeProportions;
     uint256 capMintAmount = 1_000_000 ether;
     uint64 maxSpread = 0.001 ether;
