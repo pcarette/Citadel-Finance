@@ -584,7 +584,7 @@ contract MultiLpLiquidityPool_Test is Test {
     function test_WhenUserMintTokens() external whenTheProtocolWantsToCreateAPool whenUserMintTokens {
         // it should mint synthetic tokens correctly
         // it should validate all LPs gt minCollateralRatio after mint
-        ISynthereumMultiLpLiquidityPool.MintParams memory mintParams = ISynthereumMultiLpLiquidityPool.MintParams({minNumTokens : 0.6 ether, collateralAmount : 1 ether, expiration : block.timestamp, recipient : roles.firstWrongAddress});
+        ISynthereumMultiLpLiquidityPool.MintParams memory mintParams = ISynthereumMultiLpLiquidityPool.MintParams({minNumTokens : 0.87 ether, collateralAmount : 1 ether, expiration : block.timestamp, recipient : roles.firstWrongAddress});
         vm.startPrank(roles.firstWrongAddress);
         deal(collateralAddress, roles.firstWrongAddress, 100 ether);
         CollateralToken.approve(address(pool), 1 ether);
