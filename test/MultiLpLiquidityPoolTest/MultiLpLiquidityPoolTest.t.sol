@@ -74,7 +74,6 @@ contract MultiLpLiquidityPool_Test is Test {
     uint64 daoInterestShare = 0.1 ether;
     uint64 jrtBuybackShare = 0.6 ether;
     uint8 poolVersion;
-    uint256 overCollateralisation = 0.2 ether;
     uint128 overCollateralRequirement = 0.05 ether;
     uint64 liquidationReward = 0.5 ether;
     uint64 feePercentage = 0.02 ether; // 2% fee
@@ -568,12 +567,29 @@ contract MultiLpLiquidityPool_Test is Test {
     }
 
     modifier whenUserMintTokens() {
+        vm.prank(roles.maintainer);
+        pool.registerLP(lps[0]);
+
+        for (uint8 i = 0; i < lps.length ; ++i) {
+            deal(collateralAddress, lps[i], 100 ether);
+        }
+        vm.prank(lps[0]);
+        collateralAmount = 20 ether;
+        CollateralToken.approve(address(pool), 2 * collateralAmount);
+        vm.prank(lps[0]);
+        pool.activateLP(collateralAmount, overCollateralization);
         _;
     }
 
     function test_WhenUserMintTokens() external whenTheProtocolWantsToCreateAPool whenUserMintTokens {
         // it should mint synthetic tokens correctly
         // it should validate all LPs gt minCollateralRatio after mint
+        ISynthereumMultiLpLiquidityPool.MintParams memory mintParams = ISynthereumMultiLpLiquidityPool.MintParams({minNumTokens : 0.6 ether, collateralAmount : 1 ether, expiration : block.timestamp, recipient : roles.firstWrongAddress});
+        vm.startPrank(roles.firstWrongAddress);
+        deal(collateralAddress, roles.firstWrongAddress, 100 ether);
+        CollateralToken.approve(address(pool), 1 ether);
+        pool.mint(mintParams);
+        vm.stopPrank();
     }
 
     function test_GivenMintTransactionExpired() external whenTheProtocolWantsToCreateAPool whenUserMintTokens {
