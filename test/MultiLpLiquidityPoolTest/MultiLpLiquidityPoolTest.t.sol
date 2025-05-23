@@ -589,6 +589,9 @@ contract MultiLpLiquidityPool_Test is Test {
         deal(collateralAddress, roles.firstWrongAddress, 100 ether);
         CollateralToken.approve(address(pool), 1 ether);
         pool.mint(mintParams);
+        //TODO:  it should validate all LPs gt minCollateralRatio after mint : dig into _isOvercollateralizedLP function
+        pool.positionLPInfo(lps[0]);
+        pool.collateralRequirement();
         vm.stopPrank();
     }
 
