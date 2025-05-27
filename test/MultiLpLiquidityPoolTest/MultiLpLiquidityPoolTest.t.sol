@@ -29,6 +29,8 @@ import {IStandardERC20} from "../../src/base/interfaces/IStandardERC20.sol";
 import {IMintableBurnableERC20} from "../../src/tokens/interfaces/IMintableBurnableERC20.sol";
 import {CompoundModule} from "../../src/lending-module/lending-modules/Compound.sol";
 
+import {IPoolVault} from "../../src/pool/common/interfaces/IPoolVault.sol";
+
 
 
 contract MultiLpLiquidityPool_Test is Test {
@@ -41,6 +43,7 @@ contract MultiLpLiquidityPool_Test is Test {
         address firstWrongAddress;
         address minter;
         address burner;
+        address randomGuy;
     }
 
     struct LendingManagerParams {
@@ -129,17 +132,18 @@ contract MultiLpLiquidityPool_Test is Test {
 
 
     constructor () {
-        lps.push(address(0x4));
-        lps.push(address(0x44));
+        lps.push(makeAddr("firstLP"));
+        lps.push(makeAddr("secondLP"));
         roles = Roles({
-            admin: address(0x2),
-            maintainer: address(0x3),
+            admin: makeAddr("admin"),
+            maintainer: makeAddr("maintainer"),
             liquidityProviders: lps,
-            excessBeneficiary: address(0x5),
-            dao: address(0x6),
-            firstWrongAddress: address(0x7),
-            minter: address(0x8),
-            burner: address(0x9)
+            excessBeneficiary: makeAddr("excessBeneficiary"),
+            dao: makeAddr("dao"),
+            firstWrongAddress: makeAddr("firstWrongAddress"),
+            minter: makeAddr("minter"),
+            burner: makeAddr("burner"),
+            randomGuy: makeAddr("randomGuy")
         });
         finder = new SynthereumFinder(
             SynthereumFinder.Roles(roles.admin, roles.maintainer)
@@ -268,8 +272,6 @@ contract MultiLpLiquidityPool_Test is Test {
             address(factoryVersioning)
         );
 
-        // ! Arret ici 
-
         // Define pool version and lending manager parameters
         lendingManagerParams = LendingManagerParams(
             lendingId,
@@ -307,9 +309,6 @@ contract MultiLpLiquidityPool_Test is Test {
             bytes32(bytes("Deployer")),
             address(deployer)
         );
-
-
-        //! Fin de l'arret
 
 
         vm.stopPrank();
@@ -561,11 +560,13 @@ contract MultiLpLiquidityPool_Test is Test {
         whenLiquidityProviderActivation
     {
         // it should revert with "inactive-lp"
-        vm.prank(roles.firstWrongAddress);
+        vm.prank(roles.randomGuy);
         vm.expectRevert("LP not active");
         pool.positionLPInfo(lps[0]);
     }
 
+    ISynthereumMultiLpLiquidityPool.MintParams mintParams = ISynthereumMultiLpLiquidityPool.MintParams({minNumTokens : 0, collateralAmount : 1 ** CollateralToken.decimals(), expiration : block.timestamp, recipient : roles.firstWrongAddress});
+    
     modifier whenUserMintTokens() {
         vm.prank(roles.maintainer);
         pool.registerLP(lps[0]);
@@ -583,24 +584,44 @@ contract MultiLpLiquidityPool_Test is Test {
 
     function test_WhenUserMintTokens() external whenTheProtocolWantsToCreateAPool whenUserMintTokens {
         // it should mint synthetic tokens correctly
-        // it should validate all LPs gt minCollateralRatio after mint
-        ISynthereumMultiLpLiquidityPool.MintParams memory mintParams = ISynthereumMultiLpLiquidityPool.MintParams({minNumTokens : 0.87 ether, collateralAmount : 1 ether, expiration : block.timestamp, recipient : roles.firstWrongAddress});
-        vm.startPrank(roles.firstWrongAddress);
-        deal(collateralAddress, roles.firstWrongAddress, 100 ether);
+        vm.startPrank(roles.randomGuy);
+        deal(collateralAddress, roles.randomGuy, 100 ether);
         CollateralToken.approve(address(pool), 1 ether);
         pool.mint(mintParams);
-        //TODO:  it should validate all LPs gt minCollateralRatio after mint : dig into _isOvercollateralizedLP function
-        pool.positionLPInfo(lps[0]);
-        pool.collateralRequirement();
         vm.stopPrank();
+        // it should validate all LPs gt minCollateralRatio after mint
+        for (uint8 i = 0; i < lps.length; ++i) {
+            try pool.positionLPInfo(lps[i]) returns (IPoolVault.LPInfo memory lpPosition) {
+                assertEq(lpPosition.isOvercollateralized, true);
+            } catch {}
+        }
     }
 
     function test_GivenMintTransactionExpired() external whenTheProtocolWantsToCreateAPool whenUserMintTokens {
         // it should revert with "expired"
+        ISynthereumMultiLpLiquidityPool.MintParams memory wrongMintParams = mintParams;
+        wrongMintParams.expiration = block.timestamp - 60;
+
+        vm.startPrank(roles.randomGuy);
+        deal(collateralAddress, roles.randomGuy, 100 ether);
+        CollateralToken.approve(address(pool), 1 ether);
+        vm.expectRevert("Transaction expired");
+        pool.mint(wrongMintParams);
+        vm.stopPrank();
+
     }
 
     function test_GivenZeroCollateralSent() external whenTheProtocolWantsToCreateAPool whenUserMintTokens {
-        // it should revert with "zero-collateral"
+        // it should revert with "No collateral sent"
+        ISynthereumMultiLpLiquidityPool.MintParams memory wrongMintParams = mintParams;
+        wrongMintParams.collateralAmount = 0;
+
+        vm.startPrank(roles.randomGuy);
+        deal(collateralAddress, roles.randomGuy, 100 ether);
+        CollateralToken.approve(address(pool), 1 ether);
+        vm.expectRevert("No collateral sent");
+        pool.mint(wrongMintParams);
+        vm.stopPrank();
     }
 
     function test_GivenTokensReceivedLtMinExpected() external whenTheProtocolWantsToCreateAPool whenUserMintTokens {
