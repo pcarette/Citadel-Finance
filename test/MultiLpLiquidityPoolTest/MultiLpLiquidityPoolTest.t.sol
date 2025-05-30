@@ -31,6 +31,8 @@ import {CompoundModule} from "../../src/lending-module/lending-modules/Compound.
 
 import {IPoolVault} from "../../src/pool/common/interfaces/IPoolVault.sol";
 
+import {ICompoundToken} from "../../src/interfaces/ICToken.sol";
+
 
 
 contract MultiLpLiquidityPool_Test is Test {
@@ -85,7 +87,7 @@ contract MultiLpLiquidityPool_Test is Test {
     uint64 maxSpread = 0.001 ether;
 
     address debtTokenAddress = 0xC4eF4229FEc74Ccfe17B2bdeF7715fAC740BA0ba; // aave aBnbFdusd debt token
-
+    ICompoundToken debtToken = ICompoundToken(debtTokenAddress);
 
 
     LendingManagerParams lendingManagerParams;
@@ -565,7 +567,7 @@ contract MultiLpLiquidityPool_Test is Test {
         pool.positionLPInfo(lps[0]);
     }
 
-    ISynthereumMultiLpLiquidityPool.MintParams mintParams = ISynthereumMultiLpLiquidityPool.MintParams({minNumTokens : 0, collateralAmount : 1 ** CollateralToken.decimals(), expiration : block.timestamp, recipient : roles.firstWrongAddress});
+    ISynthereumMultiLpLiquidityPool.MintParams mintParams = ISynthereumMultiLpLiquidityPool.MintParams({minNumTokens : 0, collateralAmount : 1 * 10 ** CollateralToken.decimals(), expiration : block.timestamp, recipient : msg.sender});
     
     modifier whenUserMintTokens() {
         vm.prank(roles.maintainer);
@@ -624,8 +626,56 @@ contract MultiLpLiquidityPool_Test is Test {
         vm.stopPrank();
     }
 
+    // ? Helper function for price calculation
+    function calculateFeeAndSynthAssetForMint(
+        uint256 feePrc,              // e.g. 5e16 for 5%
+        uint256 collAmount,    // in token units (e.g., 1e6 for 1 USDC)
+        uint256 price,               // price with 18 decimals (e.g., 1.133e18)
+        uint8 collateralDecimals,    // e.g., 6
+        uint256 preciseUnit          // 1e18
+    ) public pure returns (
+        uint256 feeAmount,
+        uint256 netAmount,
+        uint256 tokensAmount
+    ) {
+        // fee = amount * feePct / 1e18
+        feeAmount = (collAmount * feePrc) / preciseUnit;
+
+        // net = amount - fee
+        netAmount = collAmount - feeAmount;
+
+        // tokens = net * 10^(18 - collateralDecimals) * 1e18 / price
+        uint256 factor = 10 ** (18 - collateralDecimals);
+        tokensAmount = (netAmount * factor * preciseUnit) / price;
+    }
+
+
     function test_GivenTokensReceivedLtMinExpected() external whenTheProtocolWantsToCreateAPool whenUserMintTokens {
-        // it should revert with "slippage"
+        // it should revert with "Number of tokens less than minimum limit"
+        vm.prank(address(pool));
+        uint256 price = priceFeed.getLatestPrice(bytes32(bytes(priceIdentifier)));
+        // vm.prank(address(pool));
+        // ILendingManager.ReturnValues memory lendingValues = lendingManager.updateAccumulatedInterest();
+        // console.log("lendingValues.tokensOut : ", lendingValues.tokensOut);
+        IPoolVault.LPInfo memory lpPosition = pool.positionLPInfo(lps[0]);
+        
+        (uint256 feeAmount,uint256 netAmount, uint256 tokensAmount) = calculateFeeAndSynthAssetForMint(feePercentage, mintParams.collateralAmount, price, CollateralToken.decimals(), 1e18);
+        ISynthereumMultiLpLiquidityPool.MintParams memory wrongMintParams = mintParams;
+        wrongMintParams.minNumTokens = tokensAmount;
+        
+        vm.startPrank(roles.randomGuy);
+        deal(collateralAddress, roles.randomGuy, 100 ether);
+        CollateralToken.approve(address(pool), 1 ether);
+        vm.expectRevert("Number of tokens less than minimum limit");
+        pool.mint(wrongMintParams);
+        vm.stopPrank();
+        // vm.startPrank(roles.randomGuy);
+        // vm.stopPrank();
+    }
+
+    function test_GivenNotEnoughLiquidity() external whenTheProtocolWantsToCreateAPool whenUserMintTokens {
+        // it should revert with "No enough liquidity for covering mint operation"
+
     }
 
     modifier whenUserRedeemTokens() {
