@@ -654,12 +654,8 @@ contract MultiLpLiquidityPool_Test is Test {
         // it should revert with "Number of tokens less than minimum limit"
         vm.prank(address(pool));
         uint256 price = priceFeed.getLatestPrice(bytes32(bytes(priceIdentifier)));
-        // vm.prank(address(pool));
-        // ILendingManager.ReturnValues memory lendingValues = lendingManager.updateAccumulatedInterest();
-        // console.log("lendingValues.tokensOut : ", lendingValues.tokensOut);
-        IPoolVault.LPInfo memory lpPosition = pool.positionLPInfo(lps[0]);
         
-        (uint256 feeAmount,uint256 netAmount, uint256 tokensAmount) = calculateFeeAndSynthAssetForMint(feePercentage, mintParams.collateralAmount, price, CollateralToken.decimals(), 1e18);
+        (,, uint256 tokensAmount) = calculateFeeAndSynthAssetForMint(feePercentage, mintParams.collateralAmount, price, CollateralToken.decimals(), 1e18);
         ISynthereumMultiLpLiquidityPool.MintParams memory wrongMintParams = mintParams;
         wrongMintParams.minNumTokens = tokensAmount;
         
@@ -669,13 +665,22 @@ contract MultiLpLiquidityPool_Test is Test {
         vm.expectRevert("Number of tokens less than minimum limit");
         pool.mint(wrongMintParams);
         vm.stopPrank();
-        // vm.startPrank(roles.randomGuy);
-        // vm.stopPrank();
     }
 
     function test_GivenNotEnoughLiquidity() external whenTheProtocolWantsToCreateAPool whenUserMintTokens {
         // it should revert with "No enough liquidity for covering mint operation"
+        ISynthereumMultiLpLiquidityPool.MintParams memory wrongMintParams = mintParams;
+        // according 20 USD at 1x leverage in pool : 
+        wrongMintParams.collateralAmount = 21 ether;
+        wrongMintParams.recipient = roles.randomGuy;
 
+        deal(collateralAddress, roles.randomGuy, 100 ether);
+        vm.prank(roles.randomGuy);
+        CollateralToken.approve(address(pool), wrongMintParams.collateralAmount);
+        vm.prank(roles.randomGuy);
+        vm.expectRevert("No enough liquidity for covering mint operation");
+        pool.mint(wrongMintParams);
+        
     }
 
     modifier whenUserRedeemTokens() {
