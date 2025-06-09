@@ -104,7 +104,17 @@ contract MultiLpLiquidityPool_Test is Test {
         uint32[2] feeProportions;
     }
 
-    Roles public roles;
+    Roles public roles = Roles({
+            admin: makeAddr("admin"),
+            maintainer: makeAddr("maintainer"),
+            liquidityProviders: lps,
+            excessBeneficiary: makeAddr("excessBeneficiary"),
+            dao: makeAddr("dao"),
+            firstWrongAddress: makeAddr("firstWrongAddress"),
+            minter: makeAddr("minter"),
+            burner: makeAddr("burner"),
+            randomGuy: makeAddr("randomGuy")
+        });
     Fee public fee;
     Fee public selfMintingFee;
 
@@ -136,17 +146,6 @@ contract MultiLpLiquidityPool_Test is Test {
     constructor () {
         lps.push(makeAddr("firstLP"));
         lps.push(makeAddr("secondLP"));
-        roles = Roles({
-            admin: makeAddr("admin"),
-            maintainer: makeAddr("maintainer"),
-            liquidityProviders: lps,
-            excessBeneficiary: makeAddr("excessBeneficiary"),
-            dao: makeAddr("dao"),
-            firstWrongAddress: makeAddr("firstWrongAddress"),
-            minter: makeAddr("minter"),
-            burner: makeAddr("burner"),
-            randomGuy: makeAddr("randomGuy")
-        });
         finder = new SynthereumFinder(
             SynthereumFinder.Roles(roles.admin, roles.maintainer)
         );
@@ -567,7 +566,7 @@ contract MultiLpLiquidityPool_Test is Test {
         pool.positionLPInfo(lps[0]);
     }
 
-    ISynthereumMultiLpLiquidityPool.MintParams mintParams = ISynthereumMultiLpLiquidityPool.MintParams({minNumTokens : 0, collateralAmount : 1 * 10 ** CollateralToken.decimals(), expiration : block.timestamp, recipient : msg.sender});
+    ISynthereumMultiLpLiquidityPool.MintParams mintParams = ISynthereumMultiLpLiquidityPool.MintParams({minNumTokens : 0, collateralAmount : 1 * 10 ** CollateralToken.decimals(), expiration : block.timestamp, recipient : roles.randomGuy});
     
     modifier whenUserMintTokens() {
         vm.prank(roles.maintainer);
@@ -683,26 +682,143 @@ contract MultiLpLiquidityPool_Test is Test {
         
     }
 
+    //we need the total minted tokens stored for the following tests:
+    uint256 mintedTokens;
+
     modifier whenUserRedeemTokens() {
+        //First lp provide liquidity : 
+        vm.prank(roles.maintainer);
+        pool.registerLP(lps[0]);
+
+        for (uint8 i = 0; i < lps.length ; ++i) {
+            deal(collateralAddress, lps[i], 100 ether);
+        }
+        vm.prank(lps[0]);
+        collateralAmount = 20 ether;
+        CollateralToken.approve(address(pool), 2 * collateralAmount);
+        vm.prank(lps[0]);
+        pool.activateLP(collateralAmount, overCollateralization);
+
+        //Then, randomGuy mints token
+        vm.startPrank(roles.randomGuy);
+        deal(collateralAddress, roles.randomGuy, 100 ether);
+        CollateralToken.approve(address(pool), 1 ether);
+        (mintedTokens,) = pool.mint(mintParams);
+        vm.stopPrank();
         _;
     }
 
     function test_WhenUserRedeemTokens() external whenTheProtocolWantsToCreateAPool whenUserRedeemTokens {
+        IERC20 SyntheticToken = IERC20(address(pool.syntheticToken()));
+        uint256 userBalance = SyntheticToken.balanceOf(roles.randomGuy);
         // it should redeem tokens correctly
-        // it should fully redeem user balance
+        ISynthereumMultiLpLiquidityPool.RedeemParams memory redeemParams = ISynthereumMultiLpLiquidityPool.RedeemParams({
+            // it should fully redeem user balance
+            numTokens : userBalance, 
+            minCollateral : 0,
+            expiration : block.timestamp,
+            recipient : roles.randomGuy
+        });
+
+        vm.prank(roles.randomGuy);
+        SyntheticToken.approve(address(pool), userBalance);
+        vm.prank(roles.randomGuy);
+        pool.redeem(redeemParams);
         // it should validate LPs' collateralization after redeem
+        for (uint8 i = 0; i < lps.length; ++i) {
+            try pool.positionLPInfo(lps[i]) returns (IPoolVault.LPInfo memory lpPosition) {
+                assertEq(lpPosition.isOvercollateralized, true);
+            } catch {}
+        }
     }
 
     function test_GivenRedeemTransactionExpired() external whenTheProtocolWantsToCreateAPool whenUserRedeemTokens {
+        IERC20 SyntheticToken = IERC20(address(pool.syntheticToken()));
+        uint256 userBalance = SyntheticToken.balanceOf(roles.randomGuy);
+        ISynthereumMultiLpLiquidityPool.RedeemParams memory redeemParams = ISynthereumMultiLpLiquidityPool.RedeemParams({
+            numTokens : userBalance, 
+            minCollateral : 0,
+            expiration : block.timestamp,
+            recipient : roles.randomGuy
+        });
+        ISynthereumMultiLpLiquidityPool.RedeemParams memory wrongRedeemParams = redeemParams;
         // it should revert with "expired"
+        wrongRedeemParams.expiration = block.timestamp - 1;
+        vm.prank(roles.randomGuy);
+        SyntheticToken.approve(address(pool), userBalance);
+        vm.prank(roles.randomGuy);
+        vm.expectRevert("Transaction expired");
+        pool.redeem(wrongRedeemParams);
+
     }
 
     function test_GivenZeroTokensSent() external whenTheProtocolWantsToCreateAPool whenUserRedeemTokens {
+        IERC20 SyntheticToken = IERC20(address(pool.syntheticToken()));
+        uint256 userBalance = SyntheticToken.balanceOf(roles.randomGuy);
+        ISynthereumMultiLpLiquidityPool.RedeemParams memory redeemParams = ISynthereumMultiLpLiquidityPool.RedeemParams({
+            numTokens : userBalance, 
+            minCollateral : 0,
+            expiration : block.timestamp,
+            recipient : roles.randomGuy
+        });
+        ISynthereumMultiLpLiquidityPool.RedeemParams memory wrongRedeemParams = redeemParams;
         // it should revert with "zero-amount"
+        wrongRedeemParams.numTokens = 0;
+        vm.prank(roles.randomGuy);
+        SyntheticToken.approve(address(pool), userBalance);
+        vm.prank(roles.randomGuy);
+        vm.expectRevert("No tokens sent");
+        pool.redeem(wrongRedeemParams);
+
+    }
+
+    // ? Helper function for price calculation during redemption
+    function calculateFeeAndCollateralForRedeem(
+        uint256 feePrc,              // e.g. 5e16 for 5%
+        uint256 synthAmount,         // in 1e18 units (e.g., 1e18 = 1 token)
+        uint256 price,               // price with 18 decimals (e.g., 1.133e18)
+        uint8 collateralDecimals,    // e.g., 6
+        uint256 preciseUnit          // 1e18
+    ) public pure returns (
+        uint256 feeAmount,
+        uint256 netAmount,
+        uint256 collAmount
+    ) {
+        // fee = synthAmount * feePrc / 1e18
+        feeAmount = (synthAmount * feePrc) / preciseUnit;
+
+        // net = synthAmount - fee
+        netAmount = synthAmount - feeAmount;
+
+        // coll = net * price / 1e18 / 10^(18 - collateralDecimals)
+        uint256 factor = 10 ** (18 - collateralDecimals);
+        collAmount = (netAmount * price) / preciseUnit / factor;
     }
 
     function test_GivenAmountExceedsPoolBalance() external whenTheProtocolWantsToCreateAPool whenUserRedeemTokens {
-        // it should revert with "insufficient-liquidity"
+        IERC20 SyntheticToken = IERC20(address(pool.syntheticToken()));
+        uint256 userBalance = SyntheticToken.balanceOf(roles.randomGuy);
+        ISynthereumMultiLpLiquidityPool.RedeemParams memory redeemParams = ISynthereumMultiLpLiquidityPool.RedeemParams({
+            numTokens : userBalance, 
+            minCollateral : 0,
+            expiration : block.timestamp,
+            recipient : roles.randomGuy
+        });
+        ISynthereumMultiLpLiquidityPool.RedeemParams memory wrongRedeemParams = redeemParams;
+
+        // Getting current price :
+        vm.prank(address(pool));
+        uint256 price = priceFeed.getLatestPrice(bytes32(bytes(priceIdentifier)));
+
+        // it should revert with "Collateral amount less than minimum limit"
+        (,,uint256 collAmount) = calculateFeeAndCollateralForRedeem(feePercentage, userBalance, price, SyntheticToken.decimals(), 1e18);
+        wrongRedeemParams.minCollateral = collAmount + 1;
+        vm.prank(roles.randomGuy);
+        SyntheticToken.approve(address(pool), userBalance);
+        vm.prank(roles.randomGuy);
+        vm.expectRevert("Collateral amount less than minimum limit");
+        pool.redeem(wrongRedeemParams);
+
     }
 
     modifier whenLPAddsLiquidity() {

@@ -38,7 +38,6 @@ MultiLpLiquidityPool_Test
    │  ├── given tokens received lt minExpected
    │  │  └── it should revert with "slippage"
    │  └── it should validate all LPs gt minCollateralRatio after mint
-   //here
    ├── when user redeem tokens
    │  ├── it should redeem tokens correctly
    │  ├── it should fully redeem user balance
@@ -49,6 +48,7 @@ MultiLpLiquidityPool_Test
    │  ├── given amount exceeds pool balance
    │  │  └── it should revert with "insufficient-liquidity"
    │  └── it should validate LPs' collateralization after redeem
+   //here
    ├── when LP adds liquidity
    │  ├── it should allow active LP to add liquidity
    │  ├── given LP is inactive
