@@ -822,39 +822,99 @@ contract MultiLpLiquidityPool_Test is Test {
     }
 
     modifier whenLPAddsLiquidity() {
+        //First lp provide liquidity : 
+        vm.prank(roles.maintainer);
+        pool.registerLP(lps[0]);
+
+        for (uint8 i = 0; i < lps.length ; ++i) {
+            deal(collateralAddress, lps[i], 100 ether);
+        }
+        vm.prank(lps[0]);
+        collateralAmount = 20 ether;
+        CollateralToken.approve(address(pool), 2 * collateralAmount);
+        vm.prank(lps[0]);
+        pool.activateLP(collateralAmount, overCollateralization);
         _;
     }
 
     function test_WhenLPAddsLiquidity() external whenTheProtocolWantsToCreateAPool whenLPAddsLiquidity {
         // it should allow active LP to add liquidity
+        vm.prank(lps[0]);
+        //collateralAmount previously set at 20e18
+        pool.addLiquidity(collateralAmount);
     }
 
     function test_GivenLPIsInactive() external whenTheProtocolWantsToCreateAPool whenLPAddsLiquidity {
-        // it should revert with "not-active"
+        // it should revert with "Sender must be an active LP"
+        // lps[1] isn't registered yet : 
+        vm.prank(roles.maintainer);
+        pool.registerLP(lps[1]);
+
+        //then lp try to addLiquidity without activation : 
+        vm.prank(lps[1]);
+        CollateralToken.approve(address(pool), collateralAmount);
+
+        vm.prank(lps[1]);
+        vm.expectRevert("Sender must be an active LP");
+        pool.addLiquidity(collateralAmount);
     }
 
     function test_GivenNoCollateralSent() external whenTheProtocolWantsToCreateAPool whenLPAddsLiquidity {
-        // it should revert with "zero-collateral"
+        // it should revert with "No collateral added"
+        collateralAmount = 0;
+
+        vm.prank(lps[0]);
+        vm.expectRevert("No collateral added");
+        pool.addLiquidity(collateralAmount);
     }
 
+    uint256 collateralDeposited;
     modifier whenLPRemovesLiquidity() {
+        //First lp provide liquidity : 
+        vm.prank(roles.maintainer);
+        pool.registerLP(lps[0]);
+
+        for (uint8 i = 0; i < lps.length ; ++i) {
+            deal(collateralAddress, lps[i], 100 ether);
+        }
+        vm.prank(lps[0]);
+        collateralAmount = 20 ether;
+        CollateralToken.approve(address(pool), 2 * collateralAmount);
+        vm.prank(lps[0]);
+        (collateralDeposited) = pool.activateLP(collateralAmount, overCollateralization);
         _;
     }
 
     function test_WhenLPRemovesLiquidity() external whenTheProtocolWantsToCreateAPool whenLPRemovesLiquidity {
         // it should allow LP to remove liquidity
+        vm.prank(lps[0]);
+        pool.removeLiquidity(collateralDeposited);
     }
 
     function test_GivenLPIsNotActive() external whenTheProtocolWantsToCreateAPool whenLPRemovesLiquidity {
-        // it should revert with "not-active"
+        // it should revert with "Sender must be an active LP"
+        vm.prank(roles.maintainer);
+        pool.registerLP(lps[1]);
+
+        vm.prank(lps[1]);
+        vm.expectRevert("Sender must be an active LP");
+        pool.removeLiquidity(collateralDeposited);
     }
 
     function test_GivenNoLiquidityToWithdraw() external whenTheProtocolWantsToCreateAPool whenLPRemovesLiquidity {
         // it should revert with "nothing-to-withdraw"
+        collateralDeposited = 0;
+        vm.prank(lps[0]);
+        vm.expectRevert("No collateral withdrawn");
+        pool.removeLiquidity(collateralDeposited);
     }
 
     function test_GivenWithdrawalExceedsDeposit() external whenTheProtocolWantsToCreateAPool whenLPRemovesLiquidity {
         // it should revert with "exceeds-balance"
+        collateralDeposited = 2 * collateralDeposited;
+        vm.prank(lps[0]);
+        vm.expectRevert("SafeERC20: ERC20 operation did not succeed");
+        pool.removeLiquidity(collateralDeposited);
     }
 
     function test_GivenPost_withdrawCollateralLtMin()
@@ -862,7 +922,17 @@ contract MultiLpLiquidityPool_Test is Test {
         whenTheProtocolWantsToCreateAPool
         whenLPRemovesLiquidity
     {
-        // it should revert with "below-min-collateral"
+        // first a user mints tokens to update minimum collateralization level
+        vm.startPrank(roles.randomGuy);
+        deal(collateralAddress, roles.randomGuy, 100 ether);
+        CollateralToken.approve(address(pool), 1 ether);
+        pool.mint(mintParams);
+        vm.stopPrank();
+
+        // it should revert with "LP below its overcollateralization level"
+        vm.prank(lps[0]);
+        vm.expectRevert("LP below its overcollateralization level");
+        pool.removeLiquidity(collateralDeposited);
     }
 
     modifier whenSettingOvercollateralization() {
