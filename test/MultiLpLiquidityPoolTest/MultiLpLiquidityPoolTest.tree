@@ -48,7 +48,6 @@ MultiLpLiquidityPool_Test
    │  ├── given amount exceeds pool balance
    │  │  └── it should revert with "insufficient-liquidity"
    │  └── it should validate LPs' collateralization after redeem
-   //here
    ├── when LP adds liquidity
    │  ├── it should allow active LP to add liquidity
    │  ├── given LP is inactive
@@ -67,6 +66,7 @@ MultiLpLiquidityPool_Test
    │     └── it should revert with "below-min-collateral"
    ├── when setting overcollateralization
    │  ├── it should allow LP to set overcollateralization
+   //here
    │  ├── given LP is not activated
    │  │  └── it should revert
    │  ├── given new OC lt protocol requirement

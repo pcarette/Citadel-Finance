@@ -936,6 +936,18 @@ contract MultiLpLiquidityPool_Test is Test {
     }
 
     modifier whenSettingOvercollateralization() {
+        //First lp provide liquidity : 
+        vm.prank(roles.maintainer);
+        pool.registerLP(lps[0]);
+
+        for (uint8 i = 0; i < lps.length ; ++i) {
+            deal(collateralAddress, lps[i], 100 ether);
+        }
+        vm.prank(lps[0]);
+        collateralAmount = 20 ether;
+        CollateralToken.approve(address(pool), 2 * collateralAmount);
+        vm.prank(lps[0]);
+        (collateralDeposited) = pool.activateLP(collateralAmount, overCollateralization);
         _;
     }
 
@@ -945,6 +957,8 @@ contract MultiLpLiquidityPool_Test is Test {
         whenSettingOvercollateralization
     {
         // it should allow LP to set overcollateralization
+        vm.prank(lps[0]);
+        pool.setOvercollateralization(0.25 ether);
     }
 
     function test_RevertGiven_LPIsNotActivated()
