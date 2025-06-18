@@ -66,17 +66,13 @@ MultiLpLiquidityPool_Test
    │     └── it should revert with "below-min-collateral"
    ├── when setting overcollateralization
    │  ├── it should allow LP to set overcollateralization
-   //here
    │  ├── given LP is not activated
    │  │  └── it should revert
    │  ├── given new OC lt protocol requirement
    │  │  └── it should revert
    │  ├── given position becomes undercollateralized
    │  │  └── it should revert
-   │  ├── given trying to remove too much
-   │  │  └── it should revert
-   │  └── given final position lt required OC
-   │     └── it should revert
+   //here
    ├── when liquidation
    │  ├── it should allow liquidation of undercollateralized LP
    │  ├── it should liquidate all LP positions

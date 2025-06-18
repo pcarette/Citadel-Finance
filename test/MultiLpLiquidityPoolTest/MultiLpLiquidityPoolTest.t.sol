@@ -966,6 +966,11 @@ contract MultiLpLiquidityPool_Test is Test {
         whenTheProtocolWantsToCreateAPool
         whenSettingOvercollateralization
     {
+        //lps[1] is inactive
+        vm.prank(lps[1]);
+        vm.expectRevert("Sender must be an active LP");
+        pool.setOvercollateralization(0.25 ether);
+
         // it should revert
     }
 
@@ -974,7 +979,12 @@ contract MultiLpLiquidityPool_Test is Test {
         whenTheProtocolWantsToCreateAPool
         whenSettingOvercollateralization
     {
-        // it should revert
+        // it should revert if the new overcollateralization below overcollateral 
+        // overCollateralRequirement = 0.05 ether
+        vm.prank(lps[0]);
+        vm.expectRevert("Overcollateralization must be bigger than overcollateral requirement");
+        pool.setOvercollateralization(0.04 ether);
+        
     }
 
     function test_RevertGiven_PositionBecomesUndercollateralized()
@@ -982,23 +992,34 @@ contract MultiLpLiquidityPool_Test is Test {
         whenTheProtocolWantsToCreateAPool
         whenSettingOvercollateralization
     {
-        // it should revert
-    }
+        
+        //first we mint tokens to update lp position : 
+        vm.startPrank(roles.randomGuy);
+        deal(collateralAddress, roles.randomGuy, 100 ether);
+        CollateralToken.approve(address(pool), 10 ether);
+        mintParams.collateralAmount = 10 ether;
+        pool.mint(mintParams);
+        vm.stopPrank();
 
-    function test_RevertGiven_TryingToRemoveTooMuch()
-        external
-        whenTheProtocolWantsToCreateAPool
-        whenSettingOvercollateralization
-    {
-        // it should revert
-    }
+        //Then we get the price
+        vm.prank(address(pool));
+        uint256 price = priceFeed.getLatestPrice(bytes32(bytes(priceIdentifier)));
 
-    function test_RevertGiven_FinalPositionLtRequiredOC()
-        external
-        whenTheProtocolWantsToCreateAPool
-        whenSettingOvercollateralization
-    {
-        // it should revert
+        //Then we need actualCollateralAmount & total tokensCollateralized to calculate our below collateralisation level value
+        IPoolVault.LPInfo memory lpInfo = pool.positionLPInfo(lps[0]);
+
+        IERC20 SyntheticToken = IERC20(address(pool.syntheticToken()));
+
+
+        (,,uint256 collAmount) = calculateFeeAndCollateralForRedeem(0, lpInfo.tokensCollateralized, price, SyntheticToken.decimals(), 1e18);
+
+
+        uint newOverCollateralization = 1001 * ((lpInfo.actualCollateralAmount * 1e18) / collAmount) / 1000;
+        
+        // it should revert with LP below its overcollateralization level
+        vm.prank(lps[0]);
+        vm.expectRevert("LP below its overcollateralization level");
+        pool.setOvercollateralization(uint128(newOverCollateralization));
     }
 
     modifier whenLiquidation() {
