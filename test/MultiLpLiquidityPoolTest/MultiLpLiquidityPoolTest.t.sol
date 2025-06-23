@@ -104,6 +104,7 @@ contract MultiLpLiquidityPool_Test is Test {
         uint32[2] feeProportions;
     }
 
+    address[] lps;
     Roles public roles = Roles({
             admin: makeAddr("admin"),
             maintainer: makeAddr("maintainer"),
@@ -139,13 +140,11 @@ contract MultiLpLiquidityPool_Test is Test {
     IERC20 synthToken;
 
 
-    address[] lps;
-    
-
 
     constructor () {
         lps.push(makeAddr("firstLP"));
         lps.push(makeAddr("secondLP"));
+        roles.liquidityProviders = lps;
         finder = new SynthereumFinder(
             SynthereumFinder.Roles(roles.admin, roles.maintainer)
         );
@@ -1023,12 +1022,86 @@ contract MultiLpLiquidityPool_Test is Test {
     }
 
     modifier whenLiquidation() {
+        //First lp provide liquidity : 
+        vm.prank(roles.maintainer);
+        pool.registerLP(lps[0]);
+
+        for (uint8 i = 0; i < lps.length ; ++i) {
+            deal(collateralAddress, lps[i], 100 ether);
+        }
+        //First LP provides
+        vm.prank(lps[0]);
+        collateralAmount = 20 ether;
+        CollateralToken.approve(address(pool), 2 * collateralAmount);
+        vm.prank(lps[0]);
+        pool.activateLP(collateralAmount, overCollateralization);
+        //Second LP provides
+        vm.prank(roles.maintainer);
+        pool.registerLP(lps[1]);
+        vm.prank(lps[1]);
+        collateralAmount = 10 ether;
+        CollateralToken.approve(address(pool), 2 * collateralAmount);
+        vm.prank(lps[1]);
+        pool.activateLP(collateralAmount, overCollateralization - 0.5 ether);
         _;
+    }
+
+    // ? Helper function to retrieve less collateralized LP needed values
+    function getLessCollateralizedLP(ISynthereumMultiLpLiquidityPool poolInstance) public view returns (address lessCollateralizedLP, uint256 coverage, uint256 tokens) {
+        address[] memory activeLps = poolInstance.getActiveLPs();
+        lessCollateralizedLP = activeLps[0];
+        coverage = poolInstance.positionLPInfo(lessCollateralizedLP).coverage;
+        tokens = poolInstance.positionLPInfo(lessCollateralizedLP).tokensCollateralized;
+        for (uint8 i = 0; i < activeLps.length ; ++i) {
+            if (poolInstance.positionLPInfo(activeLps[i]).actualCollateralAmount < poolInstance.positionLPInfo(lessCollateralizedLP).actualCollateralAmount) {
+                lessCollateralizedLP = activeLps[i];
+                tokens = poolInstance.positionLPInfo(activeLps[i]).tokensCollateralized;
+                coverage = poolInstance.positionLPInfo(activeLps[i]).coverage;
+            }
+        }
     }
 
     function test_WhenLiquidation() external whenTheProtocolWantsToCreateAPool whenLiquidation {
         // it should allow liquidation of undercollateralized LP
+        // we mint tokens to update lp position : 
+        deal(collateralAddress, roles.randomGuy, 100 ether);
+        vm.prank(roles.randomGuy);
+        CollateralToken.approve(address(pool), 40 ether);
+        mintParams.collateralAmount = 40 ether;
+        vm.prank(roles.randomGuy);
+        pool.mint(mintParams);
+        
+        //To liquidate we need to get the less collateralized LP : 
+        (address lessCollateralizedLP, uint256 coverage, uint256 tokens) = getLessCollateralizedLP(pool);
+
+        //Then we get the price
+        vm.prank(address(pool));
+        uint256 price = priceFeed.getLatestPrice(bytes32(bytes(priceIdentifier)));
+
+        //Then we need coverage & tokens to calculate our new price to liquidate the less collateralized LP : 
+        uint256 exceedCollPcg = coverage * 1e18 / (1e18 + overCollateralRequirement);
+        //Then we need to increase the price to liquidate the less collateralized LP : 
+        uint256 newPrice = 101 * ((exceedCollPcg * price) / 1e18) / 100;
+
+        //Then we set the new oracle price using cheatcodes :
+        vm.mockCall(
+            address(synthereumChainlinkPriceFeed),
+            abi.encodeWithSelector(bytes4(keccak256("getLatestPrice(bytes32)")), bytes32(bytes(priceIdentifier))),
+            abi.encode(uint256(newPrice))
+        );
+        
+        //We first try to liquidate 1/3 of the tokens of the less collateralized LP : 
+        uint256 tokensToLiquidate = tokens / 3;
+
+        IERC20 SyntheticToken = IERC20(address(pool.syntheticToken()));
+        vm.prank(roles.randomGuy);
+        SyntheticToken.approve(address(pool), tokensToLiquidate);
+
+        vm.prank(roles.randomGuy);
+        pool.liquidate(lessCollateralizedLP, tokensToLiquidate);
+
         // it should liquidate all LP positions
+ 
     }
 
     function test_RevertGiven_LPIsUnactive() external whenTheProtocolWantsToCreateAPool whenLiquidation {
