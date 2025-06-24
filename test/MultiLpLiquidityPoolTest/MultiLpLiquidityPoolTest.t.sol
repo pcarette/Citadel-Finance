@@ -33,6 +33,7 @@ import {IPoolVault} from "../../src/pool/common/interfaces/IPoolVault.sol";
 
 import {ICompoundToken} from "../../src/interfaces/ICToken.sol";
 
+import {MultiLpTestHelpers} from "../helpers/MultiLpTestHelpers.sol";
 
 
 contract MultiLpLiquidityPool_Test is Test {
@@ -624,36 +625,13 @@ contract MultiLpLiquidityPool_Test is Test {
         vm.stopPrank();
     }
 
-    // ? Helper function for price calculation
-    function calculateFeeAndSynthAssetForMint(
-        uint256 feePrc,              // e.g. 5e16 for 5%
-        uint256 collAmount,    // in token units (e.g., 1e6 for 1 USDC)
-        uint256 price,               // price with 18 decimals (e.g., 1.133e18)
-        uint8 collateralDecimals,    // e.g., 6
-        uint256 preciseUnit          // 1e18
-    ) public pure returns (
-        uint256 feeAmount,
-        uint256 netAmount,
-        uint256 tokensAmount
-    ) {
-        // fee = amount * feePct / 1e18
-        feeAmount = (collAmount * feePrc) / preciseUnit;
-
-        // net = amount - fee
-        netAmount = collAmount - feeAmount;
-
-        // tokens = net * 10^(18 - collateralDecimals) * 1e18 / price
-        uint256 factor = 10 ** (18 - collateralDecimals);
-        tokensAmount = (netAmount * factor * preciseUnit) / price;
-    }
-
 
     function test_GivenTokensReceivedLtMinExpected() external whenTheProtocolWantsToCreateAPool whenUserMintTokens {
         // it should revert with "Number of tokens less than minimum limit"
         vm.prank(address(pool));
         uint256 price = priceFeed.getLatestPrice(bytes32(bytes(priceIdentifier)));
         
-        (,, uint256 tokensAmount) = calculateFeeAndSynthAssetForMint(feePercentage, mintParams.collateralAmount, price, CollateralToken.decimals(), 1e18);
+        (,, uint256 tokensAmount) = MultiLpTestHelpers.calculateFeeAndSynthAssetForMint(feePercentage, mintParams.collateralAmount, price, CollateralToken.decimals(), 1e18);
         ISynthereumMultiLpLiquidityPool.MintParams memory wrongMintParams = mintParams;
         wrongMintParams.minNumTokens = tokensAmount;
         
@@ -771,28 +749,7 @@ contract MultiLpLiquidityPool_Test is Test {
 
     }
 
-    // ? Helper function for price calculation during redemption
-    function calculateFeeAndCollateralForRedeem(
-        uint256 feePrc,              // e.g. 5e16 for 5%
-        uint256 synthAmount,         // in 1e18 units (e.g., 1e18 = 1 token)
-        uint256 price,               // price with 18 decimals (e.g., 1.133e18)
-        uint8 collateralDecimals,    // e.g., 6
-        uint256 preciseUnit          // 1e18
-    ) public pure returns (
-        uint256 feeAmount,
-        uint256 netAmount,
-        uint256 collAmount
-    ) {
-        // fee = synthAmount * feePrc / 1e18
-        feeAmount = (synthAmount * feePrc) / preciseUnit;
-
-        // net = synthAmount - fee
-        netAmount = synthAmount - feeAmount;
-
-        // coll = net * price / 1e18 / 10^(18 - collateralDecimals)
-        uint256 factor = 10 ** (18 - collateralDecimals);
-        collAmount = (netAmount * price) / preciseUnit / factor;
-    }
+    
 
     function test_GivenAmountExceedsPoolBalance() external whenTheProtocolWantsToCreateAPool whenUserRedeemTokens {
         IERC20 SyntheticToken = IERC20(address(pool.syntheticToken()));
@@ -810,7 +767,7 @@ contract MultiLpLiquidityPool_Test is Test {
         uint256 price = priceFeed.getLatestPrice(bytes32(bytes(priceIdentifier)));
 
         // it should revert with "Collateral amount less than minimum limit"
-        (,,uint256 collAmount) = calculateFeeAndCollateralForRedeem(feePercentage, userBalance, price, SyntheticToken.decimals(), 1e18);
+        (,,uint256 collAmount) = MultiLpTestHelpers.calculateFeeAndCollateralForRedeem(feePercentage, userBalance, price, SyntheticToken.decimals(), 1e18);
         wrongRedeemParams.minCollateral = collAmount + 1;
         vm.prank(roles.randomGuy);
         SyntheticToken.approve(address(pool), userBalance);
@@ -1010,7 +967,7 @@ contract MultiLpLiquidityPool_Test is Test {
         IERC20 SyntheticToken = IERC20(address(pool.syntheticToken()));
 
 
-        (,,uint256 collAmount) = calculateFeeAndCollateralForRedeem(0, lpInfo.tokensCollateralized, price, SyntheticToken.decimals(), 1e18);
+        (,,uint256 collAmount) = MultiLpTestHelpers.calculateFeeAndCollateralForRedeem(0, lpInfo.tokensCollateralized, price, SyntheticToken.decimals(), 1e18);
 
 
         uint newOverCollateralization = 1001 * ((lpInfo.actualCollateralAmount * 1e18) / collAmount) / 1000;
@@ -1046,20 +1003,6 @@ contract MultiLpLiquidityPool_Test is Test {
         _;
     }
 
-    // ? Helper function to retrieve less collateralized LP needed values
-    function getLessCollateralizedLP(ISynthereumMultiLpLiquidityPool poolInstance) public view returns (address lessCollateralizedLP, uint256 coverage, uint256 tokens) {
-        address[] memory activeLps = poolInstance.getActiveLPs();
-        lessCollateralizedLP = activeLps[0];
-        coverage = poolInstance.positionLPInfo(lessCollateralizedLP).coverage;
-        tokens = poolInstance.positionLPInfo(lessCollateralizedLP).tokensCollateralized;
-        for (uint8 i = 0; i < activeLps.length ; ++i) {
-            if (poolInstance.positionLPInfo(activeLps[i]).actualCollateralAmount < poolInstance.positionLPInfo(lessCollateralizedLP).actualCollateralAmount) {
-                lessCollateralizedLP = activeLps[i];
-                tokens = poolInstance.positionLPInfo(activeLps[i]).tokensCollateralized;
-                coverage = poolInstance.positionLPInfo(activeLps[i]).coverage;
-            }
-        }
-    }
 
     function test_WhenLiquidation() external whenTheProtocolWantsToCreateAPool whenLiquidation {
         // it should allow liquidation of undercollateralized LP
@@ -1072,7 +1015,7 @@ contract MultiLpLiquidityPool_Test is Test {
         pool.mint(mintParams);
         
         //To liquidate we need to get the less collateralized LP : 
-        (address lessCollateralizedLP, uint256 coverage, uint256 tokens) = getLessCollateralizedLP(pool);
+        (address lessCollateralizedLP, uint256 coverage, uint256 tokens) = MultiLpTestHelpers.getLessCollateralizedLP(pool);
 
         //Then we get the price
         vm.prank(address(pool));
