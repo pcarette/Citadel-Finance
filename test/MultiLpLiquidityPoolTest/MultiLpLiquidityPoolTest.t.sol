@@ -23,8 +23,9 @@ import {ILendingManager} from "../../src/lending-module/interfaces/ILendingManag
 import {ILendingStorageManager} from "../../src/lending-module/interfaces/ILendingStorageManager.sol";
 import {SynthereumPoolRegistry} from "../../src/registries/PoolRegistry.sol";
 
-import { IERC20 } from "lib/forge-std/src/interfaces/IERC20.sol";
+import {IERC20} from "lib/forge-std/src/interfaces/IERC20.sol";
 import {ISynthereumMultiLpLiquidityPool} from "../../src/pool/interfaces/IMultiLpLiquidityPool.sol";
+import {ISynthereumMultiLpLiquidityPoolEvents} from "../../src/pool/interfaces/IMultiLpLiquidityPoolEvents.sol";
 import {IStandardERC20} from "../../src/base/interfaces/IStandardERC20.sol";
 import {IMintableBurnableERC20} from "../../src/tokens/interfaces/IMintableBurnableERC20.sol";
 import {CompoundModule} from "../../src/lending-module/lending-modules/Compound.sol";
@@ -34,7 +35,6 @@ import {IPoolVault} from "../../src/pool/common/interfaces/IPoolVault.sol";
 import {ICompoundToken} from "../../src/interfaces/ICToken.sol";
 
 import {MultiLpTestHelpers} from "../helpers/MultiLpTestHelpers.sol";
-
 
 contract MultiLpLiquidityPool_Test is Test {
     struct Roles {
@@ -90,14 +90,12 @@ contract MultiLpLiquidityPool_Test is Test {
     address debtTokenAddress = 0xC4eF4229FEc74Ccfe17B2bdeF7715fAC740BA0ba; // aave aBnbFdusd debt token
     ICompoundToken debtToken = ICompoundToken(debtTokenAddress);
 
-
     LendingManagerParams lendingManagerParams;
     PoolParams poolParams;
 
     event PoolDeployed(uint8 indexed poolVersion, address indexed newPool);
 
     CompoundModule venusModule;
-
 
     struct Fee {
         uint64 feePercentage;
@@ -106,7 +104,8 @@ contract MultiLpLiquidityPool_Test is Test {
     }
 
     address[] lps;
-    Roles public roles = Roles({
+    Roles public roles =
+        Roles({
             admin: makeAddr("admin"),
             maintainer: makeAddr("maintainer"),
             liquidityProviders: lps,
@@ -128,7 +127,7 @@ contract MultiLpLiquidityPool_Test is Test {
     SynthereumManager manager;
     LendingManager lendingManager;
     LendingStorageManager lendingStorageManager;
-    address aggregator = 0x0bf79F617988C472DcA68ff41eFe1338955b9A80;// Chainlink bsc data feed address;
+    address aggregator = 0x0bf79F617988C472DcA68ff41eFe1338955b9A80; // Chainlink bsc data feed address;
     SynthereumPriceFeed priceFeed;
     SynthereumChainlinkPriceFeed synthereumChainlinkPriceFeed;
     SynthereumMultiLpLiquidityPoolFactory poolFactory;
@@ -140,9 +139,7 @@ contract MultiLpLiquidityPool_Test is Test {
     SynthereumMultiLpLiquidityPool pool;
     IERC20 synthToken;
 
-
-
-    constructor () {
+    constructor() {
         lps.push(makeAddr("firstLP"));
         lps.push(makeAddr("secondLP"));
         roles.liquidityProviders = lps;
@@ -212,19 +209,26 @@ contract MultiLpLiquidityPool_Test is Test {
             address(lendingStorageManager)
         );
 
-        lendingManager = new LendingManager(finder, ILendingManager.Roles(roles.admin, roles.maintainer));
+        lendingManager = new LendingManager(
+            finder,
+            ILendingManager.Roles(roles.admin, roles.maintainer)
+        );
         finder.changeImplementationAddress(
             bytes32(bytes("LendingManager")),
             address(lendingManager)
         );
-        
+
         venusModule = new CompoundModule();
 
-        ILendingStorageManager.LendingInfo memory lendingInfo = ILendingStorageManager.LendingInfo(address(venusModule), ""); // address of venus pool on bsc
+        ILendingStorageManager.LendingInfo
+            memory lendingInfo = ILendingStorageManager.LendingInfo(
+                address(venusModule),
+                ""
+            ); // address of venus pool on bsc
 
         lendingManager.setLendingModule("Compound", lendingInfo);
 
-        poolRegistry = new SynthereumPoolRegistry(finder); 
+        poolRegistry = new SynthereumPoolRegistry(finder);
         finder.changeImplementationAddress(
             bytes32(bytes("PoolRegistry")),
             address(poolRegistry)
@@ -248,11 +252,10 @@ contract MultiLpLiquidityPool_Test is Test {
 
         // Deploy FactoryVersioning and set roles
         factoryVersioning = new SynthereumFactoryVersioning(
-                SynthereumFactoryVersioning.Roles(roles.admin, roles.maintainer)
-            );
+            SynthereumFactoryVersioning.Roles(roles.admin, roles.maintainer)
+        );
 
         SynthereumMultiLpLiquidityPool poolImplementation = new SynthereumMultiLpLiquidityPool();
-
 
         // Deploy the pool factory with the pool implementation address
         poolFactory = new SynthereumMultiLpLiquidityPoolFactory(
@@ -266,7 +269,6 @@ contract MultiLpLiquidityPool_Test is Test {
             poolVersion,
             address(poolFactory)
         );
-
 
         finder.changeImplementationAddress(
             bytes32(bytes("FactoryVersioning")),
@@ -299,7 +301,6 @@ contract MultiLpLiquidityPool_Test is Test {
             lendingManagerParams
         );
 
-
         // Deploy SynthereumDeployer contract with admin and maintainer roles
         deployer = new SynthereumDeployer(
             finder,
@@ -311,18 +312,18 @@ contract MultiLpLiquidityPool_Test is Test {
             address(deployer)
         );
 
-
         vm.stopPrank();
-
     }
-    
+
     modifier whenTheProtocolWantsToCreateAPool() {
         // it should deploy the pool implementation correctly
         vm.prank(roles.maintainer);
-         vm.expectEmit(true, false, false, false);
+        vm.expectEmit(true, false, false, false);
         emit PoolDeployed(1, address(0x000000000000));
-        pool = SynthereumMultiLpLiquidityPool(address(deployer.deployPool(poolVersion, abi.encode(poolParams))));
-        _; 
+        pool = SynthereumMultiLpLiquidityPool(
+            address(deployer.deployPool(poolVersion, abi.encode(poolParams)))
+        );
+        _;
     }
 
     modifier whenPoolIsInitialized() {
@@ -335,26 +336,50 @@ contract MultiLpLiquidityPool_Test is Test {
         _;
     }
 
-    function test_WhenPoolIsInitialized() external whenTheProtocolWantsToCreateAPool whenPoolIsInitialized {
+    function test_WhenPoolIsInitialized()
+        external
+        whenTheProtocolWantsToCreateAPool
+        whenPoolIsInitialized
+    {
         //Check version
         assertEq(pool.version(), poolVersion, "Wrong version");
         //Check finder
-        assertEq(address(pool.synthereumFinder()), address(finder), "Wrong finder");
+        assertEq(
+            address(pool.synthereumFinder()),
+            address(finder),
+            "Wrong finder"
+        );
         //Check collateral
-        assertEq(address(pool.collateralToken()), collateralAddress, "Wrong collateral");
+        assertEq(
+            address(pool.collateralToken()),
+            collateralAddress,
+            "Wrong collateral"
+        );
         //Check synthetic name
         synthToken = IERC20(address(pool.syntheticToken()));
         assertEq(synthToken.name(), syntheticName, "Wrong synthetic name");
         //Check synthetic symbol
-        assertEq(synthToken.symbol(), syntheticSymbol, "Wrong synthetic symbol");
-        //Check lendingId 
+        assertEq(
+            synthToken.symbol(),
+            syntheticSymbol,
+            "Wrong synthetic symbol"
+        );
+        //Check lendingId
         (string memory storedLendingId, ) = pool.lendingProtocolInfo();
         assertEq(storedLendingId, lendingId, "Wrong lendingId");
-        //Check overcollateral 
-        assertEq(pool.collateralRequirement(), 1 ether + overCollateralRequirement, "Wrong overCollateral");
-        //Check liquidation reward 
-        assertEq(pool.liquidationReward(), liquidationReward, "Wrong liquidation reward");
-        //Check fee percentage 
+        //Check overcollateral
+        assertEq(
+            pool.collateralRequirement(),
+            1 ether + overCollateralRequirement,
+            "Wrong overCollateral"
+        );
+        //Check liquidation reward
+        assertEq(
+            pool.liquidationReward(),
+            liquidationReward,
+            "Wrong liquidation reward"
+        );
+        //Check fee percentage
         assertEq(pool.feePercentage(), feePercentage, "Wrong fee percentage");
     }
 
@@ -362,9 +387,7 @@ contract MultiLpLiquidityPool_Test is Test {
         external
         whenTheProtocolWantsToCreateAPool
         whenPoolIsInitialized
-    {
-      
-    }
+    {}
 
     function test_GivenRe_initializingAnAlreadyInitializedPool()
         external
@@ -372,22 +395,28 @@ contract MultiLpLiquidityPool_Test is Test {
         whenPoolIsInitialized
     {
         // it should revert with "already-initialized"
-          ISynthereumMultiLpLiquidityPool.InitializationParams memory initialisationParams = ISynthereumMultiLpLiquidityPool.InitializationParams({
-            finder: finder,
-            version: poolVersion,
-            collateralToken: IStandardERC20(address(pool.collateralToken())),
-            syntheticToken: IMintableBurnableERC20(address(pool.syntheticToken())),
-            roles: ISynthereumMultiLpLiquidityPool.Roles({
-                admin: roles.admin,
-                maintainer: roles.maintainer
-            }),
-            fee: feePercentage,
-            priceIdentifier: bytes32(bytes(priceIdentifier)),
-            overCollateralRequirement: overCollateralRequirement,
-            liquidationReward: liquidationReward,
-            lendingModuleId: lendingId
-        });
-        
+        ISynthereumMultiLpLiquidityPool.InitializationParams
+            memory initialisationParams = ISynthereumMultiLpLiquidityPool
+                .InitializationParams({
+                    finder: finder,
+                    version: poolVersion,
+                    collateralToken: IStandardERC20(
+                        address(pool.collateralToken())
+                    ),
+                    syntheticToken: IMintableBurnableERC20(
+                        address(pool.syntheticToken())
+                    ),
+                    roles: ISynthereumMultiLpLiquidityPool.Roles({
+                        admin: roles.admin,
+                        maintainer: roles.maintainer
+                    }),
+                    fee: feePercentage,
+                    priceIdentifier: bytes32(bytes(priceIdentifier)),
+                    overCollateralRequirement: overCollateralRequirement,
+                    liquidationReward: liquidationReward,
+                    lendingModuleId: lendingId
+                });
+
         vm.expectRevert("Pool already initialized");
         vm.prank(roles.maintainer);
         pool.initialize(initialisationParams);
@@ -402,7 +431,11 @@ contract MultiLpLiquidityPool_Test is Test {
         // it should revert again
     }
 
-    function test_GivenAnUnexpectedFailure() external whenTheProtocolWantsToCreateAPool whenPoolIsInitialized {
+    function test_GivenAnUnexpectedFailure()
+        external
+        whenTheProtocolWantsToCreateAPool
+        whenPoolIsInitialized
+    {
         // it should revert with fallback error
         // ? it should revert when collateral amount is zero during deployment
         vm.startPrank(roles.maintainer);
@@ -416,9 +449,11 @@ contract MultiLpLiquidityPool_Test is Test {
     modifier whenLiquidityProviderRegistration() {
         // it should deploy the pool implementation correctly
         vm.prank(roles.maintainer);
-         vm.expectEmit(true, false, false, false);
+        vm.expectEmit(true, false, false, false);
         emit PoolDeployed(1, address(0x000000000000));
-        pool = SynthereumMultiLpLiquidityPool(address(deployer.deployPool(poolVersion, abi.encode(poolParams))));
+        pool = SynthereumMultiLpLiquidityPool(
+            address(deployer.deployPool(poolVersion, abi.encode(poolParams)))
+        );
         _;
     }
 
@@ -464,7 +499,7 @@ contract MultiLpLiquidityPool_Test is Test {
         vm.prank(roles.maintainer);
         pool.registerLP(lps[0]);
 
-        for (uint8 i = 0; i < lps.length ; ++i) {
+        for (uint8 i = 0; i < lps.length; ++i) {
             deal(collateralAddress, lps[i], 100 ether);
         }
         _;
@@ -480,7 +515,6 @@ contract MultiLpLiquidityPool_Test is Test {
         whenTheProtocolWantsToCreateAPool
         whenLiquidityProviderActivation
     {
-
         // it should activate LP when no LPs are active
         vm.startPrank(lps[0]);
         CollateralToken.approve(address(pool), collateralAmount);
@@ -494,7 +528,6 @@ contract MultiLpLiquidityPool_Test is Test {
         CollateralToken.approve(address(pool), collateralAmount);
         pool.activateLP(collateralAmount, overCollateralization);
         vm.stopPrank();
-
     }
 
     function test_GivenUnregisteredSender()
@@ -536,7 +569,9 @@ contract MultiLpLiquidityPool_Test is Test {
         overCollateralization = 0.045 ether;
         CollateralToken.approve(address(pool), collateralAmount);
 
-        vm.expectRevert("Overcollateralization must be bigger than overcollateral requirement");
+        vm.expectRevert(
+            "Overcollateralization must be bigger than overcollateral requirement"
+        );
         pool.activateLP(collateralAmount, overCollateralization);
         vm.stopPrank();
     }
@@ -566,13 +601,19 @@ contract MultiLpLiquidityPool_Test is Test {
         pool.positionLPInfo(lps[0]);
     }
 
-    ISynthereumMultiLpLiquidityPool.MintParams mintParams = ISynthereumMultiLpLiquidityPool.MintParams({minNumTokens : 0, collateralAmount : 1 * 10 ** CollateralToken.decimals(), expiration : block.timestamp, recipient : roles.randomGuy});
-    
+    ISynthereumMultiLpLiquidityPool.MintParams mintParams =
+        ISynthereumMultiLpLiquidityPool.MintParams({
+            minNumTokens: 0,
+            collateralAmount: 1 * 10 ** CollateralToken.decimals(),
+            expiration: block.timestamp,
+            recipient: roles.randomGuy
+        });
+
     modifier whenUserMintTokens() {
         vm.prank(roles.maintainer);
         pool.registerLP(lps[0]);
 
-        for (uint8 i = 0; i < lps.length ; ++i) {
+        for (uint8 i = 0; i < lps.length; ++i) {
             deal(collateralAddress, lps[i], 100 ether);
         }
         vm.prank(lps[0]);
@@ -583,7 +624,11 @@ contract MultiLpLiquidityPool_Test is Test {
         _;
     }
 
-    function test_WhenUserMintTokens() external whenTheProtocolWantsToCreateAPool whenUserMintTokens {
+    function test_WhenUserMintTokens()
+        external
+        whenTheProtocolWantsToCreateAPool
+        whenUserMintTokens
+    {
         // it should mint synthetic tokens correctly
         vm.startPrank(roles.randomGuy);
         deal(collateralAddress, roles.randomGuy, 100 ether);
@@ -592,15 +637,22 @@ contract MultiLpLiquidityPool_Test is Test {
         vm.stopPrank();
         // it should validate all LPs gt minCollateralRatio after mint
         for (uint8 i = 0; i < lps.length; ++i) {
-            try pool.positionLPInfo(lps[i]) returns (IPoolVault.LPInfo memory lpPosition) {
+            try pool.positionLPInfo(lps[i]) returns (
+                IPoolVault.LPInfo memory lpPosition
+            ) {
                 assertEq(lpPosition.isOvercollateralized, true);
             } catch {}
         }
     }
 
-    function test_GivenMintTransactionExpired() external whenTheProtocolWantsToCreateAPool whenUserMintTokens {
+    function test_GivenMintTransactionExpired()
+        external
+        whenTheProtocolWantsToCreateAPool
+        whenUserMintTokens
+    {
         // it should revert with "expired"
-        ISynthereumMultiLpLiquidityPool.MintParams memory wrongMintParams = mintParams;
+        ISynthereumMultiLpLiquidityPool.MintParams
+            memory wrongMintParams = mintParams;
         wrongMintParams.expiration = block.timestamp - 60;
 
         vm.startPrank(roles.randomGuy);
@@ -609,12 +661,16 @@ contract MultiLpLiquidityPool_Test is Test {
         vm.expectRevert("Transaction expired");
         pool.mint(wrongMintParams);
         vm.stopPrank();
-
     }
 
-    function test_GivenZeroCollateralSent() external whenTheProtocolWantsToCreateAPool whenUserMintTokens {
+    function test_GivenZeroCollateralSent()
+        external
+        whenTheProtocolWantsToCreateAPool
+        whenUserMintTokens
+    {
         // it should revert with "No collateral sent"
-        ISynthereumMultiLpLiquidityPool.MintParams memory wrongMintParams = mintParams;
+        ISynthereumMultiLpLiquidityPool.MintParams
+            memory wrongMintParams = mintParams;
         wrongMintParams.collateralAmount = 0;
 
         vm.startPrank(roles.randomGuy);
@@ -625,16 +681,29 @@ contract MultiLpLiquidityPool_Test is Test {
         vm.stopPrank();
     }
 
-
-    function test_GivenTokensReceivedLtMinExpected() external whenTheProtocolWantsToCreateAPool whenUserMintTokens {
+    function test_GivenTokensReceivedLtMinExpected()
+        external
+        whenTheProtocolWantsToCreateAPool
+        whenUserMintTokens
+    {
         // it should revert with "Number of tokens less than minimum limit"
         vm.prank(address(pool));
-        uint256 price = priceFeed.getLatestPrice(bytes32(bytes(priceIdentifier)));
-        
-        (,, uint256 tokensAmount) = MultiLpTestHelpers.calculateFeeAndSynthAssetForMint(feePercentage, mintParams.collateralAmount, price, CollateralToken.decimals(), 1e18);
-        ISynthereumMultiLpLiquidityPool.MintParams memory wrongMintParams = mintParams;
+        uint256 price = priceFeed.getLatestPrice(
+            bytes32(bytes(priceIdentifier))
+        );
+
+        (, , uint256 tokensAmount) = MultiLpTestHelpers
+            .calculateFeeAndSynthAssetForMint(
+                feePercentage,
+                mintParams.collateralAmount,
+                price,
+                CollateralToken.decimals(),
+                1e18
+            );
+        ISynthereumMultiLpLiquidityPool.MintParams
+            memory wrongMintParams = mintParams;
         wrongMintParams.minNumTokens = tokensAmount;
-        
+
         vm.startPrank(roles.randomGuy);
         deal(collateralAddress, roles.randomGuy, 100 ether);
         CollateralToken.approve(address(pool), 1 ether);
@@ -643,31 +712,38 @@ contract MultiLpLiquidityPool_Test is Test {
         vm.stopPrank();
     }
 
-    function test_GivenNotEnoughLiquidity() external whenTheProtocolWantsToCreateAPool whenUserMintTokens {
+    function test_GivenNotEnoughLiquidity()
+        external
+        whenTheProtocolWantsToCreateAPool
+        whenUserMintTokens
+    {
         // it should revert with "No enough liquidity for covering mint operation"
-        ISynthereumMultiLpLiquidityPool.MintParams memory wrongMintParams = mintParams;
-        // according 20 USD at 1x leverage in pool : 
+        ISynthereumMultiLpLiquidityPool.MintParams
+            memory wrongMintParams = mintParams;
+        // according 20 USD at 1x leverage in pool :
         wrongMintParams.collateralAmount = 21 ether;
         wrongMintParams.recipient = roles.randomGuy;
 
         deal(collateralAddress, roles.randomGuy, 100 ether);
         vm.prank(roles.randomGuy);
-        CollateralToken.approve(address(pool), wrongMintParams.collateralAmount);
+        CollateralToken.approve(
+            address(pool),
+            wrongMintParams.collateralAmount
+        );
         vm.prank(roles.randomGuy);
         vm.expectRevert("No enough liquidity for covering mint operation");
         pool.mint(wrongMintParams);
-        
     }
 
     //we need the total minted tokens stored for the following tests:
     uint256 mintedTokens;
 
     modifier whenUserRedeemTokens() {
-        //First lp provide liquidity : 
+        //First lp provide liquidity :
         vm.prank(roles.maintainer);
         pool.registerLP(lps[0]);
 
-        for (uint8 i = 0; i < lps.length ; ++i) {
+        for (uint8 i = 0; i < lps.length; ++i) {
             deal(collateralAddress, lps[i], 100 ether);
         }
         vm.prank(lps[0]);
@@ -680,22 +756,27 @@ contract MultiLpLiquidityPool_Test is Test {
         vm.startPrank(roles.randomGuy);
         deal(collateralAddress, roles.randomGuy, 100 ether);
         CollateralToken.approve(address(pool), 1 ether);
-        (mintedTokens,) = pool.mint(mintParams);
+        (mintedTokens, ) = pool.mint(mintParams);
         vm.stopPrank();
         _;
     }
 
-    function test_WhenUserRedeemTokens() external whenTheProtocolWantsToCreateAPool whenUserRedeemTokens {
+    function test_WhenUserRedeemTokens()
+        external
+        whenTheProtocolWantsToCreateAPool
+        whenUserRedeemTokens
+    {
         IERC20 SyntheticToken = IERC20(address(pool.syntheticToken()));
         uint256 userBalance = SyntheticToken.balanceOf(roles.randomGuy);
         // it should redeem tokens correctly
-        ISynthereumMultiLpLiquidityPool.RedeemParams memory redeemParams = ISynthereumMultiLpLiquidityPool.RedeemParams({
-            // it should fully redeem user balance
-            numTokens : userBalance, 
-            minCollateral : 0,
-            expiration : block.timestamp,
-            recipient : roles.randomGuy
-        });
+        ISynthereumMultiLpLiquidityPool.RedeemParams memory redeemParams = ISynthereumMultiLpLiquidityPool
+            .RedeemParams({
+                // it should fully redeem user balance
+                numTokens: userBalance,
+                minCollateral: 0,
+                expiration: block.timestamp,
+                recipient: roles.randomGuy
+            });
 
         vm.prank(roles.randomGuy);
         SyntheticToken.approve(address(pool), userBalance);
@@ -703,22 +784,30 @@ contract MultiLpLiquidityPool_Test is Test {
         pool.redeem(redeemParams);
         // it should validate LPs' collateralization after redeem
         for (uint8 i = 0; i < lps.length; ++i) {
-            try pool.positionLPInfo(lps[i]) returns (IPoolVault.LPInfo memory lpPosition) {
+            try pool.positionLPInfo(lps[i]) returns (
+                IPoolVault.LPInfo memory lpPosition
+            ) {
                 assertEq(lpPosition.isOvercollateralized, true);
             } catch {}
         }
     }
 
-    function test_GivenRedeemTransactionExpired() external whenTheProtocolWantsToCreateAPool whenUserRedeemTokens {
+    function test_GivenRedeemTransactionExpired()
+        external
+        whenTheProtocolWantsToCreateAPool
+        whenUserRedeemTokens
+    {
         IERC20 SyntheticToken = IERC20(address(pool.syntheticToken()));
         uint256 userBalance = SyntheticToken.balanceOf(roles.randomGuy);
-        ISynthereumMultiLpLiquidityPool.RedeemParams memory redeemParams = ISynthereumMultiLpLiquidityPool.RedeemParams({
-            numTokens : userBalance, 
-            minCollateral : 0,
-            expiration : block.timestamp,
-            recipient : roles.randomGuy
-        });
-        ISynthereumMultiLpLiquidityPool.RedeemParams memory wrongRedeemParams = redeemParams;
+        ISynthereumMultiLpLiquidityPool.RedeemParams
+            memory redeemParams = ISynthereumMultiLpLiquidityPool.RedeemParams({
+                numTokens: userBalance,
+                minCollateral: 0,
+                expiration: block.timestamp,
+                recipient: roles.randomGuy
+            });
+        ISynthereumMultiLpLiquidityPool.RedeemParams
+            memory wrongRedeemParams = redeemParams;
         // it should revert with "expired"
         wrongRedeemParams.expiration = block.timestamp - 1;
         vm.prank(roles.randomGuy);
@@ -726,19 +815,24 @@ contract MultiLpLiquidityPool_Test is Test {
         vm.prank(roles.randomGuy);
         vm.expectRevert("Transaction expired");
         pool.redeem(wrongRedeemParams);
-
     }
 
-    function test_GivenZeroTokensSent() external whenTheProtocolWantsToCreateAPool whenUserRedeemTokens {
+    function test_GivenZeroTokensSent()
+        external
+        whenTheProtocolWantsToCreateAPool
+        whenUserRedeemTokens
+    {
         IERC20 SyntheticToken = IERC20(address(pool.syntheticToken()));
         uint256 userBalance = SyntheticToken.balanceOf(roles.randomGuy);
-        ISynthereumMultiLpLiquidityPool.RedeemParams memory redeemParams = ISynthereumMultiLpLiquidityPool.RedeemParams({
-            numTokens : userBalance, 
-            minCollateral : 0,
-            expiration : block.timestamp,
-            recipient : roles.randomGuy
-        });
-        ISynthereumMultiLpLiquidityPool.RedeemParams memory wrongRedeemParams = redeemParams;
+        ISynthereumMultiLpLiquidityPool.RedeemParams
+            memory redeemParams = ISynthereumMultiLpLiquidityPool.RedeemParams({
+                numTokens: userBalance,
+                minCollateral: 0,
+                expiration: block.timestamp,
+                recipient: roles.randomGuy
+            });
+        ISynthereumMultiLpLiquidityPool.RedeemParams
+            memory wrongRedeemParams = redeemParams;
         // it should revert with "zero-amount"
         wrongRedeemParams.numTokens = 0;
         vm.prank(roles.randomGuy);
@@ -746,43 +840,54 @@ contract MultiLpLiquidityPool_Test is Test {
         vm.prank(roles.randomGuy);
         vm.expectRevert("No tokens sent");
         pool.redeem(wrongRedeemParams);
-
     }
 
-    
-
-    function test_GivenAmountExceedsPoolBalance() external whenTheProtocolWantsToCreateAPool whenUserRedeemTokens {
+    function test_GivenAmountExceedsPoolBalance()
+        external
+        whenTheProtocolWantsToCreateAPool
+        whenUserRedeemTokens
+    {
         IERC20 SyntheticToken = IERC20(address(pool.syntheticToken()));
         uint256 userBalance = SyntheticToken.balanceOf(roles.randomGuy);
-        ISynthereumMultiLpLiquidityPool.RedeemParams memory redeemParams = ISynthereumMultiLpLiquidityPool.RedeemParams({
-            numTokens : userBalance, 
-            minCollateral : 0,
-            expiration : block.timestamp,
-            recipient : roles.randomGuy
-        });
-        ISynthereumMultiLpLiquidityPool.RedeemParams memory wrongRedeemParams = redeemParams;
+        ISynthereumMultiLpLiquidityPool.RedeemParams
+            memory redeemParams = ISynthereumMultiLpLiquidityPool.RedeemParams({
+                numTokens: userBalance,
+                minCollateral: 0,
+                expiration: block.timestamp,
+                recipient: roles.randomGuy
+            });
+        ISynthereumMultiLpLiquidityPool.RedeemParams
+            memory wrongRedeemParams = redeemParams;
 
         // Getting current price :
         vm.prank(address(pool));
-        uint256 price = priceFeed.getLatestPrice(bytes32(bytes(priceIdentifier)));
+        uint256 price = priceFeed.getLatestPrice(
+            bytes32(bytes(priceIdentifier))
+        );
 
         // it should revert with "Collateral amount less than minimum limit"
-        (,,uint256 collAmount) = MultiLpTestHelpers.calculateFeeAndCollateralForRedeem(feePercentage, userBalance, price, SyntheticToken.decimals(), 1e18);
+        (, , uint256 collAmount) = MultiLpTestHelpers
+            .calculateFeeAndCollateralForRedeem(
+                feePercentage,
+                userBalance,
+                price,
+                SyntheticToken.decimals(),
+                1e18
+            );
         wrongRedeemParams.minCollateral = collAmount + 1;
         vm.prank(roles.randomGuy);
         SyntheticToken.approve(address(pool), userBalance);
         vm.prank(roles.randomGuy);
         vm.expectRevert("Collateral amount less than minimum limit");
         pool.redeem(wrongRedeemParams);
-
     }
 
     modifier whenLPAddsLiquidity() {
-        //First lp provide liquidity : 
+        //First lp provide liquidity :
         vm.prank(roles.maintainer);
         pool.registerLP(lps[0]);
 
-        for (uint8 i = 0; i < lps.length ; ++i) {
+        for (uint8 i = 0; i < lps.length; ++i) {
             deal(collateralAddress, lps[i], 100 ether);
         }
         vm.prank(lps[0]);
@@ -793,20 +898,28 @@ contract MultiLpLiquidityPool_Test is Test {
         _;
     }
 
-    function test_WhenLPAddsLiquidity() external whenTheProtocolWantsToCreateAPool whenLPAddsLiquidity {
+    function test_WhenLPAddsLiquidity()
+        external
+        whenTheProtocolWantsToCreateAPool
+        whenLPAddsLiquidity
+    {
         // it should allow active LP to add liquidity
         vm.prank(lps[0]);
         //collateralAmount previously set at 20e18
         pool.addLiquidity(collateralAmount);
     }
 
-    function test_GivenLPIsInactive() external whenTheProtocolWantsToCreateAPool whenLPAddsLiquidity {
+    function test_GivenLPIsInactive()
+        external
+        whenTheProtocolWantsToCreateAPool
+        whenLPAddsLiquidity
+    {
         // it should revert with "Sender must be an active LP"
-        // lps[1] isn't registered yet : 
+        // lps[1] isn't registered yet :
         vm.prank(roles.maintainer);
         pool.registerLP(lps[1]);
 
-        //then lp try to addLiquidity without activation : 
+        //then lp try to addLiquidity without activation :
         vm.prank(lps[1]);
         CollateralToken.approve(address(pool), collateralAmount);
 
@@ -815,7 +928,11 @@ contract MultiLpLiquidityPool_Test is Test {
         pool.addLiquidity(collateralAmount);
     }
 
-    function test_GivenNoCollateralSent() external whenTheProtocolWantsToCreateAPool whenLPAddsLiquidity {
+    function test_GivenNoCollateralSent()
+        external
+        whenTheProtocolWantsToCreateAPool
+        whenLPAddsLiquidity
+    {
         // it should revert with "No collateral added"
         collateralAmount = 0;
 
@@ -826,28 +943,39 @@ contract MultiLpLiquidityPool_Test is Test {
 
     uint256 collateralDeposited;
     modifier whenLPRemovesLiquidity() {
-        //First lp provide liquidity : 
+        //First lp provide liquidity :
         vm.prank(roles.maintainer);
         pool.registerLP(lps[0]);
 
-        for (uint8 i = 0; i < lps.length ; ++i) {
+        for (uint8 i = 0; i < lps.length; ++i) {
             deal(collateralAddress, lps[i], 100 ether);
         }
         vm.prank(lps[0]);
         collateralAmount = 20 ether;
         CollateralToken.approve(address(pool), 2 * collateralAmount);
         vm.prank(lps[0]);
-        (collateralDeposited) = pool.activateLP(collateralAmount, overCollateralization);
+        (collateralDeposited) = pool.activateLP(
+            collateralAmount,
+            overCollateralization
+        );
         _;
     }
 
-    function test_WhenLPRemovesLiquidity() external whenTheProtocolWantsToCreateAPool whenLPRemovesLiquidity {
+    function test_WhenLPRemovesLiquidity()
+        external
+        whenTheProtocolWantsToCreateAPool
+        whenLPRemovesLiquidity
+    {
         // it should allow LP to remove liquidity
         vm.prank(lps[0]);
         pool.removeLiquidity(collateralDeposited);
     }
 
-    function test_GivenLPIsNotActive() external whenTheProtocolWantsToCreateAPool whenLPRemovesLiquidity {
+    function test_GivenLPIsNotActive()
+        external
+        whenTheProtocolWantsToCreateAPool
+        whenLPRemovesLiquidity
+    {
         // it should revert with "Sender must be an active LP"
         vm.prank(roles.maintainer);
         pool.registerLP(lps[1]);
@@ -857,7 +985,11 @@ contract MultiLpLiquidityPool_Test is Test {
         pool.removeLiquidity(collateralDeposited);
     }
 
-    function test_GivenNoLiquidityToWithdraw() external whenTheProtocolWantsToCreateAPool whenLPRemovesLiquidity {
+    function test_GivenNoLiquidityToWithdraw()
+        external
+        whenTheProtocolWantsToCreateAPool
+        whenLPRemovesLiquidity
+    {
         // it should revert with "nothing-to-withdraw"
         collateralDeposited = 0;
         vm.prank(lps[0]);
@@ -865,7 +997,11 @@ contract MultiLpLiquidityPool_Test is Test {
         pool.removeLiquidity(collateralDeposited);
     }
 
-    function test_GivenWithdrawalExceedsDeposit() external whenTheProtocolWantsToCreateAPool whenLPRemovesLiquidity {
+    function test_GivenWithdrawalExceedsDeposit()
+        external
+        whenTheProtocolWantsToCreateAPool
+        whenLPRemovesLiquidity
+    {
         // it should revert with "exceeds-balance"
         collateralDeposited = 2 * collateralDeposited;
         vm.prank(lps[0]);
@@ -892,18 +1028,21 @@ contract MultiLpLiquidityPool_Test is Test {
     }
 
     modifier whenSettingOvercollateralization() {
-        //First lp provide liquidity : 
+        //First lp provide liquidity :
         vm.prank(roles.maintainer);
         pool.registerLP(lps[0]);
 
-        for (uint8 i = 0; i < lps.length ; ++i) {
+        for (uint8 i = 0; i < lps.length; ++i) {
             deal(collateralAddress, lps[i], 100 ether);
         }
         vm.prank(lps[0]);
         collateralAmount = 20 ether;
         CollateralToken.approve(address(pool), 2 * collateralAmount);
         vm.prank(lps[0]);
-        (collateralDeposited) = pool.activateLP(collateralAmount, overCollateralization);
+        (collateralDeposited) = pool.activateLP(
+            collateralAmount,
+            overCollateralization
+        );
         _;
     }
 
@@ -935,12 +1074,13 @@ contract MultiLpLiquidityPool_Test is Test {
         whenTheProtocolWantsToCreateAPool
         whenSettingOvercollateralization
     {
-        // it should revert if the new overcollateralization below overcollateral 
+        // it should revert if the new overcollateralization below overcollateral
         // overCollateralRequirement = 0.05 ether
         vm.prank(lps[0]);
-        vm.expectRevert("Overcollateralization must be bigger than overcollateral requirement");
+        vm.expectRevert(
+            "Overcollateralization must be bigger than overcollateral requirement"
+        );
         pool.setOvercollateralization(0.04 ether);
-        
     }
 
     function test_RevertGiven_PositionBecomesUndercollateralized()
@@ -948,8 +1088,7 @@ contract MultiLpLiquidityPool_Test is Test {
         whenTheProtocolWantsToCreateAPool
         whenSettingOvercollateralization
     {
-        
-        //first we mint tokens to update lp position : 
+        //first we mint tokens to update lp position :
         vm.startPrank(roles.randomGuy);
         deal(collateralAddress, roles.randomGuy, 100 ether);
         CollateralToken.approve(address(pool), 10 ether);
@@ -959,19 +1098,27 @@ contract MultiLpLiquidityPool_Test is Test {
 
         //Then we get the price
         vm.prank(address(pool));
-        uint256 price = priceFeed.getLatestPrice(bytes32(bytes(priceIdentifier)));
+        uint256 price = priceFeed.getLatestPrice(
+            bytes32(bytes(priceIdentifier))
+        );
 
         //Then we need actualCollateralAmount & total tokensCollateralized to calculate our below collateralisation level value
         IPoolVault.LPInfo memory lpInfo = pool.positionLPInfo(lps[0]);
 
         IERC20 SyntheticToken = IERC20(address(pool.syntheticToken()));
 
+        (, , uint256 collAmount) = MultiLpTestHelpers
+            .calculateFeeAndCollateralForRedeem(
+                0,
+                lpInfo.tokensCollateralized,
+                price,
+                SyntheticToken.decimals(),
+                1e18
+            );
 
-        (,,uint256 collAmount) = MultiLpTestHelpers.calculateFeeAndCollateralForRedeem(0, lpInfo.tokensCollateralized, price, SyntheticToken.decimals(), 1e18);
+        uint newOverCollateralization = (1001 *
+            ((lpInfo.actualCollateralAmount * 1e18) / collAmount)) / 1000;
 
-
-        uint newOverCollateralization = 1001 * ((lpInfo.actualCollateralAmount * 1e18) / collAmount) / 1000;
-        
         // it should revert with LP below its overcollateralization level
         vm.prank(lps[0]);
         vm.expectRevert("LP below its overcollateralization level");
@@ -979,11 +1126,11 @@ contract MultiLpLiquidityPool_Test is Test {
     }
 
     modifier whenLiquidation() {
-        //First lp provide liquidity : 
+        //First lp provide liquidity :
         vm.prank(roles.maintainer);
         pool.registerLP(lps[0]);
 
-        for (uint8 i = 0; i < lps.length ; ++i) {
+        for (uint8 i = 0; i < lps.length; ++i) {
             deal(collateralAddress, lps[i], 100 ether);
         }
         //First LP provides
@@ -1003,55 +1150,104 @@ contract MultiLpLiquidityPool_Test is Test {
         _;
     }
 
+    event Liquidated(
+        address indexed user,
+        address indexed lp,
+        uint256 synthTokensInLiquidation,
+        uint256 collateralAmount,
+        uint256 bonusAmount,
+        uint256 collateralReceived
+    );
 
-    function test_WhenLiquidation() external whenTheProtocolWantsToCreateAPool whenLiquidation {
+    function test_WhenLiquidation()
+        external
+        whenTheProtocolWantsToCreateAPool
+        whenLiquidation
+    {
         // it should allow liquidation of undercollateralized LP
-        // we mint tokens to update lp position : 
+        // we mint tokens to update lp position :
         deal(collateralAddress, roles.randomGuy, 100 ether);
         vm.prank(roles.randomGuy);
         CollateralToken.approve(address(pool), 40 ether);
         mintParams.collateralAmount = 40 ether;
         vm.prank(roles.randomGuy);
         pool.mint(mintParams);
-        
-        //To liquidate we need to get the less collateralized LP : 
-        (address lessCollateralizedLP, uint256 coverage, uint256 tokens) = MultiLpTestHelpers.getLessCollateralizedLP(pool);
+
+        //To liquidate we need to get the less collateralized LP :
+        (
+            address lessCollateralizedLP,
+            uint256 coverage,
+            uint256 tokens
+        ) = MultiLpTestHelpers.getLessCollateralizedLP(pool);
 
         //Then we get the price
         vm.prank(address(pool));
-        uint256 price = priceFeed.getLatestPrice(bytes32(bytes(priceIdentifier)));
+        uint256 price = priceFeed.getLatestPrice(
+            bytes32(bytes(priceIdentifier))
+        );
 
-        //Then we need coverage & tokens to calculate our new price to liquidate the less collateralized LP : 
-        uint256 exceedCollPcg = coverage * 1e18 / (1e18 + overCollateralRequirement);
-        //Then we need to increase the price to liquidate the less collateralized LP : 
-        uint256 newPrice = 101 * ((exceedCollPcg * price) / 1e18) / 100;
+        //Then we need coverage & tokens to calculate our new price to liquidate the less collateralized LP :
+        uint256 exceedCollPcg = (coverage * 1e18) /
+            (1e18 + overCollateralRequirement);
+        //Then we need to increase the price to liquidate the less collateralized LP :
+        uint256 newPrice = (101 * ((exceedCollPcg * price) / 1e18)) / 100;
 
         //Then we set the new oracle price using cheatcodes :
         vm.mockCall(
             address(synthereumChainlinkPriceFeed),
-            abi.encodeWithSelector(bytes4(keccak256("getLatestPrice(bytes32)")), bytes32(bytes(priceIdentifier))),
+            abi.encodeWithSelector(
+                bytes4(keccak256("getLatestPrice(bytes32)")),
+                bytes32(bytes(priceIdentifier))
+            ),
             abi.encode(uint256(newPrice))
         );
-        
-        //We first try to liquidate 1/3 of the tokens of the less collateralized LP : 
+
+        //We first try to liquidate 1/3 of the tokens of the less collateralized LP :
         uint256 tokensToLiquidate = tokens / 3;
 
         IERC20 SyntheticToken = IERC20(address(pool.syntheticToken()));
         vm.prank(roles.randomGuy);
         SyntheticToken.approve(address(pool), tokensToLiquidate);
 
+        //We isolate conversionResult & tokensSupply to test liquidation event values
+        (, , uint256 conversionResult) = MultiLpTestHelpers
+            .calculateFeeAndCollateralForRedeem(
+                0,
+                tokensToLiquidate,
+                newPrice,
+                SyntheticToken.decimals(),
+                1e18
+            );
+        uint256 tokensSupply = SyntheticToken.totalSupply();
+
+        vm.expectEmit(true, true, true, false);
+        emit Liquidated(
+            roles.randomGuy,
+            lessCollateralizedLP,
+            tokensToLiquidate,
+            conversionResult,
+            (conversionResult * 5) / 100, // bonus amount (5% of collateral)
+            conversionResult + ((conversionResult * 5) / 100) // collateral received
+        );
         vm.prank(roles.randomGuy);
         pool.liquidate(lessCollateralizedLP, tokensToLiquidate);
 
         // it should liquidate all LP positions
- 
     }
 
-    function test_RevertGiven_LPIsUnactive() external whenTheProtocolWantsToCreateAPool whenLiquidation {
+    function test_RevertGiven_LPIsUnactive()
+        external
+        whenTheProtocolWantsToCreateAPool
+        whenLiquidation
+    {
         // it should revert
     }
 
-    function test_RevertGiven_LPIsStillCollateralized() external whenTheProtocolWantsToCreateAPool whenLiquidation {
+    function test_RevertGiven_LPIsStillCollateralized()
+        external
+        whenTheProtocolWantsToCreateAPool
+        whenLiquidation
+    {
         // it should revert
     }
 
@@ -1154,7 +1350,11 @@ contract MultiLpLiquidityPool_Test is Test {
         _;
     }
 
-    function test_WhenStorageMigration() external whenTheProtocolWantsToCreateAPool whenStorageMigration {
+    function test_WhenStorageMigration()
+        external
+        whenTheProtocolWantsToCreateAPool
+        whenStorageMigration
+    {
         // it should allow storage migration
     }
 
@@ -1251,7 +1451,10 @@ contract MultiLpLiquidityPool_Test is Test {
         // it should revert
     }
 
-    function test_WhenUsingLendingModuleWithDepositBonus() external whenTheProtocolWantsToCreateAPool {
+    function test_WhenUsingLendingModuleWithDepositBonus()
+        external
+        whenTheProtocolWantsToCreateAPool
+    {
         // it should allow mint
         // it should allow redeem
         // it should allow add liquidity
@@ -1259,7 +1462,10 @@ contract MultiLpLiquidityPool_Test is Test {
         // it should allow liquidation
     }
 
-    function test_WhenUsingLendingModuleWithDepositFees() external whenTheProtocolWantsToCreateAPool {
+    function test_WhenUsingLendingModuleWithDepositFees()
+        external
+        whenTheProtocolWantsToCreateAPool
+    {
         // it should allow mint
         // it should allow redeem
         // it should allow add liquidity
@@ -1271,7 +1477,11 @@ contract MultiLpLiquidityPool_Test is Test {
         _;
     }
 
-    function test_WhenClaimingLendingRewards() external whenTheProtocolWantsToCreateAPool whenClaimingLendingRewards {
+    function test_WhenClaimingLendingRewards()
+        external
+        whenTheProtocolWantsToCreateAPool
+        whenClaimingLendingRewards
+    {
         // it should allow claiming rewards
     }
 
