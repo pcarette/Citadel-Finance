@@ -1232,7 +1232,87 @@ contract MultiLpLiquidityPool_Test is Test {
         vm.prank(roles.randomGuy);
         pool.liquidate(lessCollateralizedLP, tokensToLiquidate);
 
-        // it should liquidate all LP positions
+
+    }
+
+    function test_WhenLiquidationAllLpPosition()
+        external
+        whenTheProtocolWantsToCreateAPool
+        whenLiquidation
+    {
+        // it should liquidate all LP position
+        // we mint tokens to update lp position :
+        deal(collateralAddress, roles.randomGuy, 100 ether);
+        vm.prank(roles.randomGuy);
+        CollateralToken.approve(address(pool), 40 ether);
+        mintParams.collateralAmount = 40 ether;
+        vm.prank(roles.randomGuy);
+        pool.mint(mintParams);
+
+        //To liquidate we need to get the less collateralized LP :
+        (
+            address lessCollateralizedLP,
+            uint256 coverage,
+            uint256 tokens
+        ) = MultiLpTestHelpers.getLessCollateralizedLP(pool);
+
+        //Then we get the price
+        vm.prank(address(pool));
+        uint256 price = priceFeed.getLatestPrice(
+            bytes32(bytes(priceIdentifier))
+        );
+
+        //Then we need coverage & tokens to calculate our new price to liquidate the less collateralized LP :
+        uint256 exceedCollPcg = (coverage * 1e18) /
+            (1e18 + overCollateralRequirement);
+        //Then we need to increase the price to liquidate the less collateralized LP :
+        uint256 newPrice = (101 * ((exceedCollPcg * price) / 1e18)) / 100;
+
+        //Then we set the new oracle price using cheatcodes :
+        vm.mockCall(
+            address(synthereumChainlinkPriceFeed),
+            abi.encodeWithSelector(
+                bytes4(keccak256("getLatestPrice(bytes32)")),
+                bytes32(bytes(priceIdentifier))
+            ),
+            abi.encode(uint256(newPrice))
+        );
+
+        //We try to liquidate all the tokens of the less collateralized LP :
+        uint256 tokensToLiquidate = tokens;
+
+        IERC20 SyntheticToken = IERC20(address(pool.syntheticToken()));
+        vm.prank(roles.randomGuy);
+        SyntheticToken.approve(address(pool), tokensToLiquidate);
+
+        //We isolate conversionResult & tokensSupply to test liquidation event values
+        (, , uint256 conversionResult) = MultiLpTestHelpers
+            .calculateFeeAndCollateralForRedeem(
+                0,
+                tokensToLiquidate,
+                newPrice,
+                SyntheticToken.decimals(),
+                1e18
+            );
+        uint256 tokensSupply = SyntheticToken.totalSupply();
+
+        vm.expectEmit(true, true, true, false);
+        emit Liquidated(
+            roles.randomGuy,
+            lessCollateralizedLP,
+            tokensToLiquidate,
+            conversionResult,
+            (conversionResult * 5) / 100, // bonus amount (5% of collateral)
+            conversionResult + ((conversionResult * 5) / 100) // collateral received
+        );
+        vm.prank(roles.randomGuy);
+        pool.liquidate(lessCollateralizedLP, tokensToLiquidate);
+
+        //We check that the LP position is empty
+
+        IPoolVault.LPInfo memory lpInfoAfterLiquidation = pool.positionLPInfo(lessCollateralizedLP);
+        assertEq(lpInfoAfterLiquidation.tokensCollateralized, 0);
+
     }
 
     function test_RevertGiven_LPIsUnactive()
@@ -1240,7 +1320,11 @@ contract MultiLpLiquidityPool_Test is Test {
         whenTheProtocolWantsToCreateAPool
         whenLiquidation
     {
-        // it should revert
+        // it should revert if the LP is not active
+        address unactiveLP = makeAddr("unactiveLP");
+        vm.prank(unactiveLP);
+        vm.expectRevert("LP is not active");
+        pool.liquidate(unactiveLP, 1);
     }
 
     function test_RevertGiven_LPIsStillCollateralized()
@@ -1249,6 +1333,16 @@ contract MultiLpLiquidityPool_Test is Test {
         whenLiquidation
     {
         // it should revert
+        vm.prank(roles.randomGuy);
+        CollateralToken.approve(address(pool), 10 ether);
+        mintParams.collateralAmount = 10 ether;
+        deal(collateralAddress, roles.randomGuy, 100 ether);
+        vm.prank(roles.randomGuy);
+        pool.mint(mintParams);
+
+        vm.prank(roles.randomGuy);
+        vm.expectRevert("LP is overcollateralized");
+        pool.liquidate(lps[0], 1);
     }
 
     modifier whenLPProfitsOrLossInterestsAreSplit() {
