@@ -7,6 +7,8 @@ contract CounterScript is Script {
     function setUp() public {}
 
     function run() public {
+        string memory projectRoot = vm.projectRoot();
+        string memory testeeuh = string.concat(projectRoot, "ouais");
         vm.broadcast();
     }
 }

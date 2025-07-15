@@ -3,7 +3,7 @@ cache/
 out/
 
 # Ignores development broadcast logs
-!/broadcast
+/broadcast
 /broadcast/*/31337/
 /broadcast/**/dry-run/
 
@@ -15,3 +15,6 @@ docs/
 
 #Wake logs
 .wake/
+
+# Contract addresses on local fork
+script/deployments/addresses/**
