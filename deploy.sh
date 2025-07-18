@@ -1,5 +1,10 @@
 #!/bin/bash
 
+
+# TODO:Ne pas utiliser en prod la ligne suivante
+rm -rf script/deployments/addresses/*
+
+
 # Deployment script for Jarvis Protocol
 # This script deploys all contracts in the correct order
 
