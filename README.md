@@ -93,6 +93,16 @@ To test Citadel Finance locally, you can use a BSC-compatible local environment 
    forge script scripts/Deploy.s.sol --fork-url http://localhost:8545 --broadcast
    ```
 
+### Testing
+
+To run specific tests against BSC mainnet fork:
+
+```bash
+forge test --fork-url $BSC_RPC_URL --match-path test/MultiLpLiquidityPoolTest/MultiLpLiquidityPoolTest.t.sol --match-test $TEST_NAME -vvvv
+```
+
+Replace `$TEST_NAME` with the specific test function name you want to run and `$BSC_RPC_URL` with your BSC RPC endpoint.
+
 ### Interacting with Citadel Finance
 
 After deploying the protocol, you can interact with it through:
