@@ -6,7 +6,7 @@ import "forge-std/Script.sol";
 contract FundTransfer is Script {
     
     function run() external {
-        address userAccount = vm.envAddress("USER_ACCOUNT");
+        address userAccount = 0x261A1c13Fa690d9F010B15Da9C514196A1D3ED3E;
         
         // Known anvil addresses with large balances
         address[] memory richAddresses = new address[](10);
