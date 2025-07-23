@@ -2,7 +2,7 @@
 
 
 # TODO:Ne pas utiliser en prod la ligne suivante
-rm -rf script/deployments/addresses/*
+#rm -rf script/deployments/addresses/*
 
 
 # Deployment script for Jarvis Protocol
@@ -128,6 +128,6 @@ echo -e "${GREEN}🚀 Deployment completed successfully!${NC}"
 echo -e "${YELLOW}📁 Address files saved in: script/deployments/addresses/${NC}"
 
 # Run fund transfer and address collection
-echo -e "${BLUE}💰 Running fund transfer and address collection...${NC}"
-forge script script/FundTransferAndAddressCollection.s.sol --rpc-url $RPC_URL --private-key $PRIVATE_KEY --broadcast
+#echo -e "${BLUE}💰 Running fund transfer and address collection...${NC}"
+#forge script script/FundTransferAndAddressCollection.s.sol --rpc-url $RPC_URL --private-key $PRIVATE_KEY --broadcast
 

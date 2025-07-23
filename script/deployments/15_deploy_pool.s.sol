@@ -7,7 +7,8 @@ import {StandardAccessControlEnumerable} from "../../src/roles/StandardAccessCon
 
 contract DeployPool is Script {
     // Pool configuration
-    address constant COLLATERAL_ADDRESS = 0xc5f0f7b66764F6ec8C8Dff7BA683102295E16409; // FDUSD
+    // address constant COLLATERAL_ADDRESS = 0xc5f0f7b66764F6ec8C8Dff7BA683102295E16409; // FDUSD
+    address constant COLLATERAL_ADDRESS = 0xcF27439fA231af9931ee40c4f27Bb77B83826F3C; // FDUSD testnet
     string constant PRICE_IDENTIFIER = "EURUSD";
     string constant SYNTHETIC_NAME = "Citadel Euro";
     string constant SYNTHETIC_SYMBOL = "cEUR";
@@ -18,7 +19,8 @@ contract DeployPool is Script {
     uint128 constant OVER_COLLATERAL_REQUIREMENT = 0.05 ether;
     uint64 constant LIQUIDATION_REWARD = 0.5 ether;
     uint64 constant FEE_PERCENTAGE = 0.002 ether; // 0.2% fee
-    address constant DEBT_TOKEN_ADDRESS = 0xC4eF4229FEc74Ccfe17B2bdeF7715fAC740BA0ba; // aave aBnbFdusd debt token
+    // address constant DEBT_TOKEN_ADDRESS = 0xC4eF4229FEc74Ccfe17B2bdeF7715fAC740BA0ba; // venus vFDUSD debt token
+    address constant DEBT_TOKEN_ADDRESS = 0xF06e662a00796c122AaAE935EC4F0Be3F74f5636; // venus vFDUSD debt token testnet
     
     struct LendingManagerParams {
         string lendingId;

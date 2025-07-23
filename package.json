@@ -1,0 +1,28 @@
+{
+  "name": "my_project",
+  "version": "1.0.0",
+  "description": "**Citadel Finance** is a decentralized finance (DeFi) protocol and fork of [Synthereum by Jarvis Protocol](https://jarvis.network/). Designed for creating and managing synthetic assets, Citadel Finance leverages on-chain liquidity to provide users with accessible, stable, and tradable synthetic tokens on the Binance Smart Chain (BSC).",
+  "main": "compile-addresses.js",
+  "directories": {
+    "doc": "docs",
+    "lib": "lib",
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pcarette/Citadel-Finance.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/pcarette/Citadel-Finance/issues"
+  },
+  "homepage": "https://github.com/pcarette/Citadel-Finance#readme",
+  "dependencies": {
+    "@pythnetwork/pyth-sdk-solidity": "^4.2.0"
+  }
+}

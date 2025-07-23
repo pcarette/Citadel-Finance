@@ -2,3 +2,4 @@
 @openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/
 @uma/core/=lib/protocol/packages/core/
 @chainlink/contracts/=lib/chainlink-brownie-contracts/contracts/
+@pythnetwork/pyth-sdk-solidity/=node_modules/@pythnetwork/pyth-sdk-solidity

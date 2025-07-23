@@ -8,10 +8,18 @@ import {SynthereumChainlinkPriceFeed} from "../../src/oracle/implementations/Cha
 import {SynthereumPriceFeedImplementation} from "../../src/oracle/implementations/PriceFeedImplementation.sol";
 import {StandardAccessControlEnumerable} from "../../src/roles/StandardAccessControlEnumerable.sol";
 
+import { PythAggregatorV3 } from "@pythnetwork/pyth-sdk-solidity/PythAggregatorV3.sol";
+
 contract DeployPriceFeedAndChainlink is Script {
     string constant PRICE_IDENTIFIER = "EURUSD";
     uint64 constant MAX_SPREAD = 0.001 ether;
-    address constant AGGREGATOR = 0x0bf79F617988C472DcA68ff41eFe1338955b9A80; // Chainlink BSC data feed address
+    
+    //We need to deploy pyth price feed on testnet instead of connect to chainlink one: 
+    //address constant AGGREGATOR = 0x0bf79F617988C472DcA68ff41eFe1338955b9A80; // Chainlink BSC data feed address
+    // Get the address for your ecosystem from:
+    // https://docs.pyth.network/price-feeds/contract-addresses/evm
+    address pythPriceFeedsContract = 0x5744Cbf430D99456a0A8771208b674F27f8EF0Fb; // BSC Testnet one
+
     
     function getFinderAddress() internal view returns (address) {
         string memory finderData = vm.readFile("script/deployments/addresses/finder.txt");
@@ -43,12 +51,16 @@ contract DeployPriceFeedAndChainlink is Script {
         
         // Setup price feed oracle
         priceFeed.addOracle("chainlink", address(chainlinkPriceFeed));
+
+        //Deploy IPyth replacor of chainlink aggregator :
+        PythAggregatorV3 aggregatorInstance = new PythAggregatorV3(pythPriceFeedsContract, 0xa995d00bb36a63cef7fd2c287dc105fc8f3d93779f062f09551b0af3e81ec30b);
+
         
         // Setup chainlink price feed pair
         chainlinkPriceFeed.setPair(
             PRICE_IDENTIFIER,
             SynthereumPriceFeedImplementation.Type(1),
-            AGGREGATOR,
+            address(aggregatorInstance), //AGGREGATOR,
             0,
             "",
             MAX_SPREAD
@@ -76,7 +88,13 @@ contract DeployPriceFeedAndChainlink is Script {
         ));
         vm.writeFile("script/deployments/addresses/chainlinkPriceFeed.txt", chainlinkData);
         
+        string memory pythAggregatorData = string(abi.encodePacked(
+            "PYTH_AGGREGATOR_ADDRESS=", vm.toString(address(aggregatorInstance))
+        ));
+        vm.writeFile("script/deployments/addresses/pythAggregator.txt", pythAggregatorData);
+        
         console.log("PriceFeed deployed at:", address(priceFeed));
         console.log("ChainlinkPriceFeed deployed at:", address(chainlinkPriceFeed));
+        console.log("Pyth Aggregator deployed at:", address(aggregatorInstance));
     }
 }

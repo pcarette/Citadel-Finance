@@ -6,7 +6,8 @@ import {SynthereumFinder} from "../../src/Finder.sol";
 import {SynthereumCollateralWhitelist} from "../../src/CollateralWhitelist.sol";
 
 contract DeployCollateralWhitelist is Script {
-    address constant COLLATERAL_ADDRESS = 0xc5f0f7b66764F6ec8C8Dff7BA683102295E16409; // FDUSD
+    // address constant COLLATERAL_ADDRESS = 0xc5f0f7b66764F6ec8C8Dff7BA683102295E16409; // FDUSD
+    address constant COLLATERAL_ADDRESS = 0xcF27439fA231af9931ee40c4f27Bb77B83826F3C; // FDUSD testnet
     
     function getFinderAddress() internal view returns (address) {
         string memory finderData = vm.readFile("script/deployments/addresses/finder.txt");
