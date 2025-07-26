@@ -74,6 +74,30 @@
     "trustedForwarder": {
       "address": "0xaAf2D01e47b2dd03e91e5E2422e77e61DA963C58",
       "key": "TRUSTEDFORWARDER_ADDRESS"
+    },
+    "vaultImplementation": {
+      "address": "0xd4438c02Ed3e56F3F7fCA535Ac967602C0bA4b45",
+      "key": "VAULT_IMPLEMENTATION_ADDRESS"
+    },
+    "vaultFactory": {
+      "address": "0x17FE9FE1d839097a07635f0CE6c6292D422334b2",
+      "key": "VAULT_FACTORY_ADDRESS"
+    },
+    "vaultRegistry": {
+      "address": "0x49D97f8a2f65ec3B0719Fe0a1B83aA50Bd1d593F",
+      "key": "VAULT_REGISTRY_ADDRESS"
+    },
+    "vault1x": {
+      "address": "0x99886dAC9f28d23D8d61BFeBE2930D8166c1418E",
+      "key": "VAULT_1X_ADDRESS"
+    },
+    "vault5x": {
+      "address": "0xC09059EF5ddA9ce9FC6c38AeC184a876913cEAaB",
+      "key": "VAULT_5X_ADDRESS"
+    },
+    "vault20x": {
+      "address": "0x4510551f5005Ff84fdab1a3c55248548aDe23727",
+      "key": "VAULT_20X_ADDRESS"
     }
   }
 }
