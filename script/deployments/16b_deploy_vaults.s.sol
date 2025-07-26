@@ -34,7 +34,7 @@ contract DeployVaults is Script {
             "Citadel Vault Conservative",
             "cVAULT-1X",
             poolAddress,
-            1.0 ether // 100% overcollateralization for 1x leverage
+            2.0 ether // 100% overcollateralization for 1x leverage
         );
         
         // Deploy Vault 2: Moderate (5x leverage)
@@ -43,7 +43,7 @@ contract DeployVaults is Script {
             "Citadel Vault Moderate",
             "cVAULT-5X", 
             poolAddress,
-            0.2 ether // 20% overcollateralization for 5x leverage
+            1.2 ether // 20% overcollateralization for 5x leverage
         );
         
         // Deploy Vault 3: Aggressive (20x leverage)
@@ -52,7 +52,7 @@ contract DeployVaults is Script {
             "Citadel Vault Aggressive",
             "cVAULT-20X",
             poolAddress,
-            0.05 ether // 5% overcollateralization for 20x leverage
+            1.05 ether // 5% overcollateralization for 20x leverage
         );
         
         vm.stopBroadcast();

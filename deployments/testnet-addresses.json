@@ -88,16 +88,20 @@
       "key": "VAULT_REGISTRY_ADDRESS"
     },
     "vault1x": {
-      "address": "0x99886dAC9f28d23D8d61BFeBE2930D8166c1418E",
+      "address": "0x5C9E2E892DF72696392738143DD4272464251cA0",
       "key": "VAULT_1X_ADDRESS"
     },
     "vault5x": {
-      "address": "0xC09059EF5ddA9ce9FC6c38AeC184a876913cEAaB",
+      "address": "0xD0118881bc4E6d8b3937495C3343473e4d250041",
       "key": "VAULT_5X_ADDRESS"
     },
     "vault20x": {
-      "address": "0x4510551f5005Ff84fdab1a3c55248548aDe23727",
+      "address": "0xbeBCe4030848c8B9a37c8bc5C8Af286B4BbaCe8D",
       "key": "VAULT_20X_ADDRESS"
+    },
+    "faucetLimiter": {
+      "address": "0xF939E4d39B1F30f084047cc33A75719f252efBE0",
+      "key": "FAUCET_LIMITER_ADDRESS"
     }
   }
 }
